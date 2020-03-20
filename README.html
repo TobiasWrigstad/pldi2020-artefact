@@ -1,0 +1,1003 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2020-02-29 lör 02:42 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PAPER 99: Improving Program Locality in the GC using Hotness</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="Tobias Wrigstad" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .equation-container {
+    display: table;
+    text-align: center;
+    width: 100%;
+  }
+  .equation {
+    vertical-align: middle;
+  }
+  .equation-label {
+    display: table-cell;
+    text-align: right;
+    vertical-align: middle;
+  }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<style> code { background: #ddd; padding: 2px; } </style>
+<style> body { width: 800px; margin: auto; } </style>
+<style> blockquote { background: #fcc; padding: 2px 14px 2px 14px; } </style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2019 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">PAPER 99: Improving Program Locality in the GC using Hotness</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org91c2762">1. Overview</a></li>
+<li><a href="#orgfbdb7c4">2. Getting Started</a>
+<ul>
+<li><a href="#orgcb76ff6">2.1. OPTION 1: Download Pre-Packaged Virtual Machine </a></li>
+<li><a href="#org86b1e22">2.2. OPTION 2: Manual Build on Debian/Ubuntu </a></li>
+</ul>
+</li>
+<li><a href="#org5f0cd6f">3. Step-by-Step</a>
+<ul>
+<li><a href="#org89a6f81">3.1. Running the Simplified Benchmarks</a>
+<ul>
+<li><a href="#org81c17ff">3.1.1. Kick-the-Tires Benchmark Fast (~15 minutes)</a></li>
+<li><a href="#org095dc5f">3.1.2. Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</a></li>
+<li><a href="#org1c716bf">3.1.3. Full Benchmark Slow (Weeks(!))</a></li>
+<li><a href="#org33e9244">3.1.4. Exporting the Results for Viewing Outside the VM</a></li>
+</ul>
+</li>
+<li><a href="#org97d0a9e">3.2. How to Evaluate this Artefact</a></li>
+<li><a href="#orgb458a54">3.3. Viewing the Results</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org91c2762" class="outline-2">
+<h2 id="org91c2762"><span class="section-number-2">1</span> Overview</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+Paper 99 presents HCSGC, built on-top of the ZGC collector in
+OpenJDK. HCSGC use the mutators (the applications' threads) to
+relocate objects on the heap to improve their placement. As a
+consequence of this design, objects touched by a mutator during
+the relocation phase of the GC cycle will be laid out in access
+order which may improve cache performance on subsequent accesses.
+Furthermore, HCSGC can track objects' "hotness". An object is
+"hot" if it was accessed during the last GC cycle, otherwise
+"cold". During GC, hot objects and cold objects are segregated to
+increase the density of hot objects, and weights can be assigned
+to cold objects so that they count less towards the live bytes of
+a ZGC memory page. This can be used to improve the selection of
+what memory pages to relocate during GC, as GC is no longer only
+concerned with freeing memory, but with improving object locality
+in the program.
+</p>
+
+<p>
+We demonstrate the impact of our design choices, and the
+applicability of our techniques, through a selection of
+benchmarks.
+</p>
+
+<p>
+As the number of tuning knobs are relatively large, the paper
+deals with 19 different configurations for each benchmark with
+several runs (the exact number depending on the benchmark)
+to reach a steady state. To save artefact reviewers' time, the we
+provide a simple test script that generates Figure 4 from
+the paper with a single run. We also provide
+a medium-weight testing option to generate the full Figure 4-6 with
+31 runs (same as in the paper). 
+</p>
+
+<p>
+The full benchmarks<sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup> are also provided and can
+take weeks to run, depending on the machine.
+</p>
+
+<p>
+After the benchmarks are run, an HTML file is open that shows the
+produced plots with links to the plots of the paper for
+comparison.
+</p>
+
+<p>
+This artefact consists of the following:
+</p>
+
+<ol class="org-ol">
+<li>The sources for HCSGC in the form of a single patch file for
+OpenJDK (<code>0001-hcsgc.patch</code>).</li>
+<li><p>
+The benchmark programs from our paper (§4):
+</p>
+<ul class="org-ul">
+<li>Our "sanity check" micro benchmark from §4.4;</li>
+<li>The JGraphT benchmark from §4.5; and</li>
+<li>The DaCapo benchmark suite from which we run Tradebeans and h2 in §4.6.</li>
+</ul>
+<p>
+NOTE: Due to copyright restrictions, we cannot include SPECjbb2015 in the artefact.
+</p></li>
+<li>A virtual machine containing all of the above, including
+pre-built OpenJDK and HCSGC. As many virtual machine
+environments do not support <code>perf</code> (which we rely on for cache
+statistics), the full experience of this artefact is likely ony
+possible with a native installation.</li>
+<li>Scripts to automate running the the benchmarks and producing
+the plots.</li>
+</ol>
+
+<p>
+Beware that this artefact requires several gigabytes of disk space
+for all dependencies and the build itself.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgfbdb7c4" class="outline-2">
+<h2 id="orgfbdb7c4"><span class="section-number-2">2</span> Getting Started</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+This section explains how to install HCSGC alongside an OpenJDK
+baseline. <a href="#org5f0cd6f">The next section</a> explains how to run the benchmarks. 
+</p>
+
+<p>
+Please note that OpenJDK is a large project with many
+dependencies, and that that our HCSGC paper compares 19 different
+configurations which naturally takes some time to run. We explain
+simplifications made to keep time short to kick the tires, and how
+to run the full benchmarks to reproduc the results from the paper
+(possibly modulo <code>perf</code>, when running inside a virtual machine).
+</p>
+
+<p>
+We provide two different ways to explore this artefact. To
+kick-the-tires, we suggest Option 1 (prebuilt VM). For someone
+working deep in this space or wanting to fully reproduce our
+results, we suggestion Option 2 (manual native install).
+</p>
+
+<ul class="org-ul">
+<li><a href="#org548968c">Option 1</a> is a full VM download. This requires no other setup or
+installation other than the virtual machine infrastructure, but
+requires a download of ~8 gigabytes.</li>
+<li><a href="#org16417d7">Option 2</a> is a set of manual instructions for how to build and
+install HCSGC on Debian/Ubuntu.</li>
+</ul>
+
+<p>
+Notes: Option 1, due to running inside virtual machines, typically
+<b>cannot</b> record perf data and may skew the results. 
+</p>
+</div>
+
+
+<div id="outline-container-orgcb76ff6" class="outline-3">
+<h3 id="orgcb76ff6"><span class="section-number-3">2.1</span> OPTION 1: Download Pre-Packaged Virtual Machine <a id="org548968c"></a></h3>
+<div class="outline-text-3" id="text-2-1">
+<p>
+You can use your favorite virtualisation software. We have tested
+this VM using <a href="https://www.virtualbox.org/">Virtual Box</a>.
+</p>
+
+<p>
+The Virtual machine can be downloaded from here: <a href="http://wrigstad.com/paper99.zip">http://wrigstad.com/paper99.zip</a>
+(Since you are reading this file, you are probably already past this step. In that case, 
+you can find the virtual machine as <code>pldi.ova</code> inside the above-mentioned zip file.)
+</p>
+
+<p>
+After importing the VM, start and login to the VM with the
+following credentials:
+</p>
+
+<pre class="example">
+user: vagrant
+password: vagrant
+</pre>
+
+<p>
+See <a href="#org5f0cd6f">the next section</a> for instructions for how to run the
+benchmarks. 
+</p>
+
+<p>
+All interaction with the VM will happen in the terminal. The only
+need for a graphical user interface is to view graphical plots
+from the benchmarking. 
+</p>
+</div>
+</div>
+
+
+
+<div id="outline-container-org86b1e22" class="outline-3">
+<h3 id="org86b1e22"><span class="section-number-3">2.2</span> OPTION 2: Manual Build on Debian/Ubuntu <a id="org16417d7"></a></h3>
+<div class="outline-text-3" id="text-2-2">
+<p>
+Because of the large number of dependencies for OpenJDK, we limit
+ourselves to providing manual instructions for building on
+debian/ubuntu. At the time we implemented HCSGC, ZGC, which we
+build upon, was only available for 64bit Linux. 
+</p>
+
+<p>
+Create a directory for the artefact, e.g. <code>mkdir ~/paper99; cd
+~/paper99</code>. All commands from now on are assumed to be issued from
+within that directory.
+</p>
+
+<p>
+Download the benchmark programs and scripts from
+<a href="http://wrigstad.com/paper99.zip">http://wrigstad.com/paper99.zip</a> (discard the .ova VM file) and extract into <code>~/paper99</code>.
+This will give you the following files and directories:
+</p>
+
+<pre class="example">
+~paper99
+  ├── 0001-hcsgc.patch  &lt;-- HCSGC sources patch
+  ├── benchmarks        &lt;-- our benchmark programs
+  ├── jtreg             &lt;-- OpenJDK build dependency
+  ├── README.html       
+  ├── README.org
+  └── README.txt
+</pre>
+
+<p>
+Install the basic building blocks:
+</p>
+<pre class="example">
+sudo apt-get install -y build-essential autoconf git git-lfs
+</pre>
+
+<p>
+Utilities
+</p>
+<pre class="example">
+sudo apt-get install -y curl perf-tools-unstable time util-linux
+</pre>
+<p>
+(Note that sometimes, the <code>perf-tools-unstable</code> package naming may vary.)
+</p>
+
+<p>
+Make sure you have the permissions to use <code>perf</code>:
+</p>
+<pre class="example">
+sudo sh -c 'echo -1 &gt; /proc/sys/kernel/perf_event_paranoid'
+</pre>
+
+<p>
+Install OpenJDK dependencies
+</p>
+<pre class="example">
+sudo apt-get install -y zip unzip libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libfontconfig1-dev libasound2-dev
+</pre>
+<p>
+Note that you need a graphical environment to build OpenJDK. If you don't have that, OpenJDK will complain and suggest packages that will remedy the situation.
+</p>
+
+
+<p>
+You also need to have a Java installation. If you can install OpenJDK 13 or above, this will simplify things later:
+</p>
+<pre class="example">
+sudo apt-get install -y openjdk-13-jdk-headless
+</pre>
+<p>
+<b>Otherwise, you will still need one to build the benchmark.</b> Either of the following should work:
+</p>
+<pre class="example">
+sudo apt-get install -y openjdk-11-jdk-headless
+sudo apt-get install -y openjdk-8-jdk-headless
+</pre>
+
+<p>
+If you could not install OpenJDK 13 above, you <b>need</b> to install modern boot JDK to build:
+</p>
+<pre class="example">
+curl -O https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz 
+tar zxf openjdk-13.0.2_linux-x64_bin.tar.gz
+</pre>
+<p>
+(If you can install <code>openjdk-13-jdk-headless</code>, you can skip this step and omit the <code>--with-boot-jdk</code> flag when running <code>configure</code> later.)
+</p>
+
+<p>
+Clone baseline JDK from GitHub mirror, and checkout the commit on-top of which HCSGC was authored.
+</p>
+<pre class="example">
+git clone https://github.com/openjdk/jdk.git openjdk
+cd openjdk
+git checkout 67a89143dde6e545adbfc3c79bb89d954307f8bc
+cd ..
+</pre>
+
+<p>
+Create a copy of the baseline to build HCSGC.
+</p>
+<pre class="example">
+cp -R openjdk hcsgc
+</pre>
+
+<p>
+Configure and finally build OpenJDK.
+</p>
+<pre class="example">
+cd openjdk
+bash configure --with-target-bits=64 --with-native-debug-symbols=none --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
+make CONF=release
+bash configure --enable-debug --with-target-bits=64 --with-native-debug-symbols=internal --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
+make CONF=debug
+cd ..
+</pre>
+<p>
+(If you did install <code>openjdk-13-jdk-headless</code> using apt, skip the <code>--with-boot-jdk</code> flag above.)
+</p>
+
+<p>
+Patch OpenJDK with the HCSGC patch. 
+</p>
+<pre class="example">
+cd hcsgc 
+git am &lt; ../0001-hcsgc.patch
+</pre>
+
+<p>
+Configure and finally build OpenJDK/HCSGC. 
+</p>
+<pre class="example">
+bash configure --with-target-bits=64 --with-native-debug-symbols=none --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
+make CONF=release
+bash configure --enable-debug --with-target-bits=64 --with-native-debug-symbols=internal --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
+make CONF=debug
+cd ..
+</pre>
+<p>
+(If you did install <code>openjdk-13-jdk-headless</code> using apt, skip the <code>--with-boot-jdk</code> flag above.)
+</p>
+
+<p>
+Note that the <code>make</code> steps will take a long time. 
+</p>
+
+<p>
+After building, the baseline <code>java</code> and binary is available in
+<code>~/paper99/openjdk/build/linux-x86_64-server-release/jdk/bin/</code>,
+and the HCSGC build in
+<code>~/paper99/hcsgc/build/linux-x86_64-server-release/jdk/bin/</code>
+(debug builds in <code>linux-x86_64-server-fastdebug</code>). However, you do
+not need to use these directly, as scripts for running the
+individual benchmarks are provided. This is detailed in the next
+section.
+</p>
+
+<p>
+Finally, to extract data from logs and plot the data, some additional tools are needed:
+</p>
+<pre class="example">
+wget -qO- https://get.haskellstack.org/ | sh
+stack install ghc
+stack install turtle
+
+sudo apt-get install -y ruby octave octave-statistics zsh
+</pre>
+
+
+<blockquote>
+<p>
+Finally, <b>unless</b> you placed the <code>paper99</code> directory directly
+under <code>~</code>, you must edit <code>hcsgc_engine.hs</code> and <code>hcsgc_engine_single_core.hs</code> and
+change the paths to the newly built OpenJDK and HCSGC binaries (lines 43, 44, 46, and 47 in both files). 
+<b>If you skip this step, the benchmark scripts will not run!</b>
+</p>
+</blockquote>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org5f0cd6f" class="outline-2">
+<h2 id="org5f0cd6f"><span class="section-number-2">3</span> Step-by-Step</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+This section contains instructions for running the benchmarks from
+the paper (again, excluding SPECjbb2015 for copyright reasons).
+</p>
+
+<p>
+A text describing how to evaluate the results is found in the file
+<code>result.html</code> in the <code>benchmarks</code> directory, and which is opened
+automatically when the benchmarks finish (inside the VM) and
+contains all the plots with accompanying text (mostly adapted from
+the paper).
+</p>
+</div>
+
+
+<div id="outline-container-org89a6f81" class="outline-3">
+<h3 id="org89a6f81"><span class="section-number-3">3.1</span> Running the Simplified Benchmarks</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+Due to the large number of configurations, and the large number of
+runs needed for statistical significance, running the
+benchmarks is <b>very time consuming</b>, and is expected to take at
+least 24 hours on a modern laptop. 
+</p>
+
+<p>
+To this end, we provide a simplified benchmark setting where we
+only run the synthetic benchmark for a single run (for each
+19 configurations) that is intended to prove that HCSGC is indeed
+built correctly, and that its tuning knobs do work (because
+different configurations do see different results). 
+</p>
+
+<p>
+Based on our experience, we estimate the following run-times for
+the benchmarks:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Benchmark</th>
+<th scope="col" class="org-left">Run-time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">synthetic</td>
+<td class="org-left">5h</td>
+</tr>
+
+<tr>
+<td class="org-left">synthetic phases</td>
+<td class="org-left">15h</td>
+</tr>
+
+<tr>
+<td class="org-left">synthetic cold</td>
+<td class="org-left">7h</td>
+</tr>
+
+<tr>
+<td class="org-left">cc-uk</td>
+<td class="org-left">7h</td>
+</tr>
+
+<tr>
+<td class="org-left">cc-enwiki</td>
+<td class="org-left">7h</td>
+</tr>
+
+<tr>
+<td class="org-left">mc-uk</td>
+<td class="org-left">40h</td>
+</tr>
+
+<tr>
+<td class="org-left">mc-enwiki</td>
+<td class="org-left">32h</td>
+</tr>
+
+<tr>
+<td class="org-left">tradebeans</td>
+<td class="org-left">98h</td>
+</tr>
+
+<tr>
+<td class="org-left">h2</td>
+<td class="org-left">158h</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div id="outline-container-org81c17ff" class="outline-4">
+<h4 id="org81c17ff"><span class="section-number-4">3.1.1</span> Kick-the-Tires Benchmark Fast (~15 minutes)</h4>
+<div class="outline-text-4" id="text-3-1-1">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Benchmark</th>
+<th scope="col" class="org-left">Figure in Paper</th>
+<th scope="col" class="org-left">Runs</th>
+<th scope="col" class="org-right">Configurations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">synthetic</td>
+<td class="org-left">Fig. 4</td>
+<td class="org-left">1 (see note)</td>
+<td class="org-right">19</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+<b>Note:</b> To avoid changing the scripts, we copy the resulting logs
+31 times to fake the 31 runs that we ran in the paper. Naturally
+this setting cannot be used to obtain any results with any
+statistical significance, and any jitter on your machine could
+skew the results.
+</p>
+
+<p>
+To run this benchmark, which should take 15 minutes (in <code>~/benchmarks</code> on VM or <code>~/paper99/benchmarks</code> in the manual install):
+</p>
+
+<pre class="example">
+zsh
+make test
+</pre>
+
+<p>
+This compiles the synthetic benchmark, runs the parts of it
+relevant for Figure 4, produces the corresponding plots and opens
+a browser to show them together with accompanying text.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org095dc5f" class="outline-4">
+<h4 id="org095dc5f"><span class="section-number-4">3.1.2</span> Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</h4>
+<div class="outline-text-4" id="text-3-1-2">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Benchmark</th>
+<th scope="col" class="org-left">Figure in Paper</th>
+<th scope="col" class="org-right">Runs</th>
+<th scope="col" class="org-right">Configurations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">synthetic</td>
+<td class="org-left">Fig. 4</td>
+<td class="org-right">31</td>
+<td class="org-right">19</td>
+</tr>
+
+<tr>
+<td class="org-left">synthetic phases</td>
+<td class="org-left">Fig. 5</td>
+<td class="org-right">31</td>
+<td class="org-right">19</td>
+</tr>
+
+<tr>
+<td class="org-left">synthetic cold</td>
+<td class="org-left">Fig. 6</td>
+<td class="org-right">31</td>
+<td class="org-right">19</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>
+To run the synthetic benchmarks for Figure 4 with the full 31
+runs from the paper (in <code>~/benchmarks</code> on VM or <code>~/paper99/benchmarks</code> in the manual install):
+</p>
+
+<pre class="example">
+zsh
+make test_full
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org1c716bf" class="outline-4">
+<h4 id="org1c716bf"><span class="section-number-4">3.1.3</span> Full Benchmark Slow (Weeks(!))</h4>
+<div class="outline-text-4" id="text-3-1-3">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Benchmark</th>
+<th scope="col" class="org-left">Figure in Paper</th>
+<th scope="col" class="org-right">Runs</th>
+<th scope="col" class="org-right">Configurations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">synthetic</td>
+<td class="org-left">Fig. 4</td>
+<td class="org-right">31</td>
+<td class="org-right">19</td>
+</tr>
+
+<tr>
+<td class="org-left">synthetic phases</td>
+<td class="org-left">Fig. 5</td>
+<td class="org-right">31</td>
+<td class="org-right">19</td>
+</tr>
+
+<tr>
+<td class="org-left">synthetic cold</td>
+<td class="org-left">Fig. 6</td>
+<td class="org-right">31</td>
+<td class="org-right">19</td>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td class="org-left">jgrapht suite</td>
+<td class="org-left">Fig. 7-10</td>
+<td class="org-right">31</td>
+<td class="org-right">19</td>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td class="org-left">dacapo h2/tradebeans</td>
+<td class="org-left">Fig. 11-12</td>
+<td class="org-right">5 (25 iters per run)</td>
+<td class="org-right">19</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+<p>
+Finally, to run the <b>full</b> benchmarks from the paper (in <code>~/benchmarks</code> on VM or <code>~/paper99/benchmarks</code> in the manual install):
+</p>
+
+<pre class="example">
+zsh
+make bench
+</pre>
+
+<p>
+This compiles all benchmarks (Dacapo is provided as a jar file),
+runs all the benchmarks, produces the plots and finally opens a
+browser to show the results together with accompanying text.
+</p>
+
+<p>
+The plots are are placed in
+<code>data/images/evaluation/</code> under the <code>benchmark</code> directory. The file
+<code>results.html</code> in the <code>benchmark</code> directory shows all the plots in a single HTML
+file together with pointers to the paper and a discussion of their
+interpretation. The directory
+<code>submitted_evaluation</code> contains the
+plots from the paper for comparison and all these figures are shown in <code>results.html</code>.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org33e9244" class="outline-4">
+<h4 id="org33e9244"><span class="section-number-4">3.1.4</span> Exporting the Results for Viewing Outside the VM</h4>
+<div class="outline-text-4" id="text-3-1-4">
+<p>
+You can create a zip file, <code>results.zip</code>, with all the plots and
+<code>results.html</code> like so:
+</p>
+
+<pre class="example">
+make zip
+</pre>
+
+<p>
+And use whatever means to export the zip file. The simplest way is
+probably by using <code>scp</code> to copy <code>results.zip</code> to some other machine. 
+</p>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-org97d0a9e" class="outline-3">
+<h3 id="org97d0a9e"><span class="section-number-3">3.2</span> How to Evaluate this Artefact</h3>
+<div class="outline-text-3" id="text-3-2">
+<p>
+This is described in <a href="benchmarks/results.html">results.html</a> along with the figures produced
+by running the benchmark scripts using the makefile as detailed
+above.
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-orgb458a54" class="outline-3">
+<h3 id="orgb458a54"><span class="section-number-3">3.3</span> Viewing the Results</h3>
+<div class="outline-text-3" id="text-3-3">
+<p>
+The file <a href="benchmarks/results.html">results.html</a> is opened by the main makefile after
+benchmarking. Should you wish to open it again without rerunning
+the benchmarks:
+</p>
+
+<pre class="example">
+make view
+</pre>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1">1</a></sup> <div class="footpara"><p class="footpara">Except for SPECJbb2015 which cannot be
+included due to copyright restrictions.</p></div></div>
+
+
+</div>
+</div></div>
+<div id="postamble" class="status">
+<p class="author">Author: Tobias Wrigstad</p>
+<p class="date">Created: 2020-02-29 lör 02:42</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>

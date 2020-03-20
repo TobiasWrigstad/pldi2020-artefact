@@ -1,0 +1,1343 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2020-02-27 Tor 14:06 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Benchmark Results for HCSGC</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="Tobias Wrigstad" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<style> pre.src { color: white; background: #333; } </style>
+<style> body { width: 800px; } </style>
+<style> img { width: 500px; } </style>
+<style> table { margin-top: 50px; } </style>
+<style> blockquote { background: #fcc; padding: 2px 14px 2px 14px; } </style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2018 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Benchmark Results for HCSGC</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org248af85">1. IMPORTANT NOTES FOR EVALUATORS</a></li>
+<li><a href="#orga33a90e">2. Introduction to HCSGC and How to Evaluate</a></li>
+<li><a href="#orge9bafe9">3. Configurations </a></li>
+<li><a href="#orgb9d8aa8">4. Sanity Check Benchmark of §4.4</a>
+<ul>
+<li><a href="#org6ec49ad">4.1. §4.4 and Figure 4</a></li>
+<li><a href="#org2e44edb">4.2. Adapting to phase changes (In paper, this is Figure  5)</a></li>
+<li><a href="#org1a1d788">4.3. High Overhead of RelocateAllSmallPages (In paper, this is Figure  6)</a></li>
+</ul>
+</li>
+<li><a href="#orgc18e7dd">5. JGraphT Benchmark of §4.5</a>
+<ul>
+<li><a href="#org2ec8487">5.1. Connected Components</a></li>
+<li><a href="#org521c5a6">5.2. Bron-kerbosch Maximal Clique</a></li>
+</ul>
+</li>
+<li><a href="#orge832728">6. DaCapo Benchmark Suite of §4.6</a>
+<ul>
+<li><a href="#orgfee33b7">6.1. Tradebeans </a></li>
+<li><a href="#org7b77c2b">6.2. H2 </a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<blockquote>
+<p>
+The Tables in this file are created by the benchmark scripts. 
+</p>
+
+<p>
+<code>make test</code> produces plots for the left-hand-side of Tables 1, 2 and 3.
+</p>
+
+<p>
+<code>make test_full</code> produces plots for the left-hand-side of Tables 1&#x2013;9.
+</p>
+
+<p>
+The full plots are generated by <code>make bench</code>, which takes <i>weeks</i> to run. 
+</p>
+
+<p>
+The left plots in the tables below will be empty initially, and only our submitted plots be shown.
+</p>
+</blockquote>
+
+<div id="outline-container-org248af85" class="outline-2">
+<h2 id="org248af85"><span class="section-number-2">1</span> IMPORTANT NOTES FOR EVALUATORS</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+HCSGC requires multiple cores to run efficiently (as demonstrated
+below). If you constrain the CPU resources of the virtual machine
+in which you run HCSGC you are likely to see mostly slowdowns, and
+few performance improvements (cf. Figure 6 in the paper).
+</p>
+
+<p>
+Furthermore, running <code>perf</code> inside a virtual machine is typically
+not supported (depending on your virtualisation software). Unless
+you install HCSGC manually, you are not likely to get any cache
+metrics.
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-orga33a90e" class="outline-2">
+<h2 id="orga33a90e"><span class="section-number-2">2</span> Introduction to HCSGC and How to Evaluate</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+The evaluation of this paper is concerned with showing that HCSGC
+can speed-up benchmarks in relation to the baseline &#x2013; an
+unmodified OpenJDK using the ZGC collector &#x2013; which is
+Configuration 0. We record cache performance using <code>perf</code> along
+with the number of times GC was triggered (GC cycles) and the
+number of pages relocated to explain our results. As detailed
+<a href="#orgd80678d">below</a>, we test 18 different configurations, in addition to the
+baseline, using various flags and settings in HCSGC.
+</p>
+
+<p>
+One of the key ideas of HCSGC is to use applications threads to
+move objects around in memory on access. During relocation in a GC
+cycle, all pages which will be relocated are flagged accordingly,
+which forces the first load of a pointer going into such a page to
+trigger code that copies the objects off the page and into a local
+allocation buffer. Thus, if an application thread accesses 10
+objects scattered across such pages, these objects will
+subsequently be copied and placed in consecutive space on the
+thread's allocation buffer. This copying naturally incurs some
+extra overhead on the application threads, but if the application
+exhibits temporal and spatial locality &#x2013; these extra costs will
+be made up for by the increased performance of subsequent accesses.
+</p>
+
+<p>
+When Hotness is on (configurations 5-18), HCSGC records whether an
+object was touched by the application or not in the last GC cycle.
+This comes with a small overhead (discussed further below), but
+allows the GC threads to place objects which have not been touched
+(aka cold) and objects that have (aka hot) in different places in
+the memory so that hot objects "stay together". This favours
+spatial locality and is turned on by the ColdPage setting (on in
+configurations 11-18). 
+</p>
+
+<p>
+Tracking hotness also allows us to do a better selection of what
+pages are relocated. In ZGC, relocation takes place to collect
+garbage, and so what pages to relocate is based only on the number
+of live bytes. In HCSGC, relocation also allows us to "curate the
+heap", meaning segregating hot and cold objects, and forcing
+application threads to place objects on those pages that they
+access in access order which favours locality and prefetching
+behaviour. To this end, the ColdConfidence setting allows us to
+assign a weight to cold bytes. If this weight is low, a page in
+memory with only few hot bytes will be selected for relocation.
+This allows us to "excavate" hot objects buried among long-lived,
+cold objects on a densely populated page so that we may improve
+their placement. Different configurations use different
+ColdConfidence as detailed by the table <a href="#orgd80678d">below</a>.
+</p>
+
+<p>
+When RelocateAllSmallPages is on (configurations 3, 4, 17, and 18)
+&#x2013; GC will relocate all pages, regardless of hotness or liveness.
+This is crude but effective, especially as we do not need to pay a
+cost to track hotness. On a machine with spare cores, the cost of
+the additional copying is taken by GC threads and thus efficiently
+hidden from the application.
+</p>
+
+<p>
+Finally, when LazyRelocate is on (configurations 2, 4, 8-10,
+14-16, 18), we shift the timing of relocation in a GC cycle in a
+way that effectively delays GC threads. This causes garbage
+objects to stay floating longer before they are reclaimed, but
+also gives applications' threads longer time to relocate the objects
+they access without competing with GC threads. 
+</p>
+
+<p>
+Notably, HCSGC is not expected to produce speed-ups across the
+board. Programs which have only short-lived objects or no stable
+access paths will not enjoy and performance improvements. 
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-orge9bafe9" class="outline-2">
+<h2 id="orge9bafe9"><span class="section-number-2">3</span> Configurations <a id="orgd80678d"></a></h2>
+<div class="outline-text-2" id="text-3">
+<p>
+In the plots, Configuration 0 is an unmodified OpenJDK using ZGC,
+built from the same commit on which we authored HCSGC. All other
+configurations are HCSGC with various flags on or off or at
+different values. The table below overviews the 19 different
+configurations. 0 means a flag was turned off, and 1 means a flag
+was turned on. As ColdConfidence, we pick 0, 0.5 and 1.0.
+Configuration 5 turns on hotness tracking but does not use it.
+(ColdConfidence assigns a weight to cold bytes that allows us to
+better select pages for relocation during garbage collection. A
+ColdConfidence of 0 means \(N\) cold bytes count as \(N\) live bytes.
+A ColdConfidence of 1 means that \(N\) cold bytes count as 0 live
+bytes.)
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Knobs \ Configurations</th>
+<th scope="col" class="org-left">0</th>
+<th scope="col" class="org-right">1</th>
+<th scope="col" class="org-right">2</th>
+<th scope="col" class="org-right">3</th>
+<th scope="col" class="org-right">4</th>
+<th scope="col" class="org-right">5</th>
+<th scope="col" class="org-right">6</th>
+<th scope="col" class="org-right">7</th>
+<th scope="col" class="org-right">8</th>
+<th scope="col" class="org-right">9</th>
+<th scope="col" class="org-right">10</th>
+<th scope="col" class="org-right">11</th>
+<th scope="col" class="org-right">12</th>
+<th scope="col" class="org-right">13</th>
+<th scope="col" class="org-right">14</th>
+<th scope="col" class="org-right">15</th>
+<th scope="col" class="org-right">16</th>
+<th scope="col" class="org-right">17</th>
+<th scope="col" class="org-right">18</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Hotness</td>
+<td class="org-left">n/a</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+</tr>
+
+<tr>
+<td class="org-left">ColdPage</td>
+<td class="org-left">n/a</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+</tr>
+
+<tr>
+<td class="org-left">ColdConfidence</td>
+<td class="org-left">n/a</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0.5</td>
+<td class="org-right">1.0</td>
+<td class="org-right">0</td>
+<td class="org-right">0.5</td>
+<td class="org-right">1.0</td>
+<td class="org-right">0</td>
+<td class="org-right">0.5</td>
+<td class="org-right">1.0</td>
+<td class="org-right">0</td>
+<td class="org-right">0.5</td>
+<td class="org-right">1.0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+</tr>
+
+<tr>
+<td class="org-left">RelocateAllSmallPages</td>
+<td class="org-left">n/a</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+</tr>
+
+<tr>
+<td class="org-left">LazyRelocate</td>
+<td class="org-left">n/a</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">1</td>
+<td class="org-right">0</td>
+<td class="org-right">1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+
+<div id="outline-container-orgb9d8aa8" class="outline-2">
+<h2 id="orgb9d8aa8"><span class="section-number-2">4</span> Sanity Check Benchmark of §4.4</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+The synthetic benchmark is meant to illustrate the behaviour of
+HCSGC and its various tuning knobs. The syntetic benchmark creates
+an array of objects which is then accesses in a randomized order
+multiple times, each time in the same order. The results show that
+HCSGC is indeed able to move the hot objects in the stable access
+order closer so that subsequent accesses are faster. 
+</p>
+
+<p>
+In the benchmark, we create an array of \(2\times 10^6\) elements,
+each pointing to a 32-byte object (including VM metadata). Here
+is the main body of the benchmark in pseudo-Java:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-java"><span style="color: #ff79c6; font-weight: bold;">for</span> (<span style="color: #bd93f9;">int</span> <span style="color: #f8f8f2;">i</span> = 0; i &lt; 200; ++i) {
+  rand = <span style="color: #ff79c6; font-weight: bold;">new</span> <span style="color: #bd93f9;">Random</span>(0); <span style="color: #6272a4;">// </span><span style="color: #6272a4;">use same seed each loop</span>
+  <span style="color: #ff79c6; font-weight: bold;">for</span> (<span style="color: #bd93f9;">int</span> <span style="color: #f8f8f2;">j</span> = 0; j &lt; 800 * 1000; ++j) {
+    index = rand.nextInt(...) <span style="color: #6272a4;">// </span><span style="color: #6272a4;">preferably another cache line</span>
+    f(index); <span style="color: #6272a4;">// </span><span style="color: #6272a4;">access element in index</span>
+    ++ops;
+    <span style="color: #ff79c6; font-weight: bold;">if</span> (ops % 10 == 0) { <span style="color: #6272a4;">/* </span><span style="color: #6272a4;">allocate garbage to trigger GC */</span> }
+  }
+}
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org6ec49ad" class="outline-3">
+<h3 id="org6ec49ad"><span class="section-number-3">4.1</span> §4.4 and Figure 4</h3>
+<div class="outline-text-3" id="text-4-1">
+<p>
+The execution time under each configuration is shown in
+<a href="#org8e91b8c">Table 1</a>. This artificially contrived benchmark has
+clear hot&#x2013;cold segregation and a recurring stable access pattern.
+During our evaluation, we observed the accumulative effect of various tuning knobs,
+corresponding to the different tiers of performance above.
+</p>
+
+<p>
+In our evaluation, we saw the largest improvement for
+Configurations 4, 10, 16, and 18, which have both large EC<sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup> (due to
+relocating all pages or 100% cold confidence) and lazy relocation
+enabled. The second largest improvement were seen in
+Configurations 3 and 17, with large EC due to relocating all
+pages. Next, we also observed some improvement for Configurations
+7 and 13 because they relocate many pages (which has the
+side-effect of making mutators relocatee hot objects) due to 100%
+cold confidence. Finally, we saw no improvement for Configurations
+2, 5, 8, 11, and 14 show no improvement at all.
+</p>
+
+<table id="org8e91b8c" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 1:</span> In paper, this is Figure 4 (left). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_mtime.png"><img src="data/images/evaluation/synthetic_mtime.png" alt="synthetic_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_mtime.png"><img src="data/images/submitted_evaluation/synthetic_mtime.png" alt="synthetic_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<p>
+<a href="#orgb178802">Table 2</a> shows cache metrics. In our evalution, Configurations 3,
+4, 7, 10, 13, 16, 17, and 18 exhibit large reduction in L1/LLC
+misses. We observed large increases of total loads for
+Configurations 3&#x2013;18 that were mostly served by cache L1/LLC
+(small L1/LLC misses) so they were still a net gain. In our
+evaluation, configurations showing large cache miss reduction were
+consistent with the corresponding improved performance in <a href="#org8e91b8c">Table
+1</a>, <b>demonstrating that HCSGC is effective in improving locality.</b>
+</p>
+
+<table id="orgb178802" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 2:</span> In paper, this is Figure 4 (center). The left plot will be all 0's if perf data could not be obtained on your system. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_cache.png"><img src="data/images/evaluation/synthetic_cache.png" alt="synthetic_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_cache.png"><img src="data/images/submitted_evaluation/synthetic_cache.png" alt="synthetic_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+
+<p>
+<a href="#org269c036">Table 3</a> explores the nature of the extra work performed by HCSGC.
+We compare the number of GC cycles and the amount of relocation of
+the various configurations with out ZGC baseline. In our
+evaluation, it was clear from the plots that the extra loads were
+due to extra GC cycles and/or enlarged EC &#x2013; e.g. those
+configurations that had more loads had increased number of GC cycles
+and also (typically but not always) more pages relocated during
+GC. 
+</p>
+
+<table id="org269c036" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 3:</span> In paper, this is Figure 4 (right). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_per_gc.png"><img src="data/images/evaluation/synthetic_per_gc.png" alt="synthetic_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_per_gc.png"><img src="data/images/submitted_evaluation/synthetic_per_gc.png" alt="synthetic_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+
+<blockquote>
+<p>
+If you have run <code>make test</code>, your data ends here.
+</p>
+</blockquote>
+</div>
+</div>
+
+
+<div id="outline-container-org2e44edb" class="outline-3">
+<h3 id="org2e44edb"><span class="section-number-3">4.2</span> Adapting to phase changes (In paper, this is Figure  5)</h3>
+<div class="outline-text-3" id="text-4-2">
+<p>
+The design of HCSGC  should adapt naturally to
+phase changes that alter what objects are accessed by an
+application, and in what order. To test this, we extended the
+single-phase code (shown in pseudo-Java above in this document) to simulate going through multiple phases each
+with its own access pattern. As shown below, we use three phases,
+where each phase has its own seed so that within each phase, the
+access order is stable, but different across the phases.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-java"><span style="color: #ff79c6; font-weight: bold;">for</span> (<span style="color: #bd93f9;">int</span> <span style="color: #f8f8f2;">phase</span> = 0; phase &lt; 3; ++phase) {
+  <span style="color: #ff79c6; font-weight: bold;">for</span> (<span style="color: #bd93f9;">int</span> <span style="color: #f8f8f2;">i</span> = 0; i &lt; 200; ++i) {
+    rand = <span style="color: #ff79c6; font-weight: bold;">new</span> <span style="color: #bd93f9;">Random</span>(phase); <span style="color: #6272a4;">// </span><span style="color: #6272a4;">not a constant anymore</span>
+    ... <span style="color: #6272a4;">// </span><span style="color: #6272a4;">same as before</span>
+  }
+}
+</pre>
+</div>
+
+<p>
+When running this modified benchmark using HCSGC, the performance
+results where not significantly different from the results of
+single-phase version (Tables 1-3 above). This showed that HCSGC
+can indeed react to phase changes.
+</p>
+
+<p>
+The result of running the modified benchmark in the artefact is
+found below in <a href="#org403e9bb">Table 4</a>, <a href="#orgbaf90eb">Table 5</a>, and <a href="#org8b372b7">Table 6</a>.
+</p>
+
+<table id="org403e9bb" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 4:</span> In paper, this is Figure 5 (left). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_phases_mtime.png"><img src="data/images/evaluation/synthetic_phases_mtime.png" alt="synthetic_phases_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_phases_mtime.png"><img src="data/images/submitted_evaluation/synthetic_phases_mtime.png" alt="synthetic_phases_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="orgbaf90eb" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 5:</span> In paper, this is Figure 5 (center). The left plot will be all 0's if perf data could not be obtained on your system. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_phases_cache.png"><img src="data/images/evaluation/synthetic_phases_cache.png" alt="synthetic_phases_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_phases_cache.png"><img src="data/images/submitted_evaluation/synthetic_phases_cache.png" alt="synthetic_phases_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org8b372b7" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 6:</span> In paper, this is Figure 5 (right). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_phases_per_gc.png"><img src="data/images/evaluation/synthetic_phases_per_gc.png" alt="synthetic_phases_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_phases_per_gc.png"><img src="data/images/submitted_evaluation/synthetic_phases_per_gc.png" alt="synthetic_phases_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+<div id="outline-container-org1a1d788" class="outline-3">
+<h3 id="org1a1d788"><span class="section-number-3">4.3</span> High Overhead of RelocateAllSmallPages (In paper, this is Figure  6)</h3>
+<div class="outline-text-3" id="text-4-3">
+<p>
+HCSGC configurations which use the <code>-XX:+RelocateAllSmallPages</code>
+(i.e., flag is on) performs very well on a machine that is not
+fully saturated. This is because all the extra time taken to
+relocate pages is "hidden" from mutators since relocation happens
+in GC threads and collection is concurrent.
+</p>
+
+<p>
+To demonstrate this, we restrict HCSGC to run on a single core (using taskset) which forces the addtional GC work to be shared by the same cores that serve the mutators. In our evaluation, the result was a considerable slow down of configurations that previously saw 30+% speed-up; they saw a slow-down of 30+% instead. <i>Note that if you are running HCSGC in a virtual machine, you will always get this behaviour unless you allow the virtual machine to use more than one of your cores.</i>
+</p>
+
+<table id="org0b1004f" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 7:</span> In paper, this is Figure 6. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_cold_mtime.png"><img src="data/images/evaluation/synthetic_cold_mtime.png" alt="synthetic_cold_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_cold_mtime.png"><img src="data/images/submitted_evaluation/synthetic_cold_mtime.png" alt="synthetic_cold_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org1505e63" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 8:</span> In paper, this is figure was omitted due to space reasons. The left plot will be all 0's if perf data could not be obtained on your system. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_cold_cache.png"><img src="data/images/evaluation/synthetic_cold_cache.png" alt="synthetic_cold_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_cold_cache.png"><img src="data/images/submitted_evaluation/synthetic_cold_cache.png" alt="synthetic_cold_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org92b2184" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 9:</span> In paper, this is figure was omitted due to space reasons. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/synthetic_cold_per_gc.png"><img src="data/images/evaluation/synthetic_cold_per_gc.png" alt="synthetic_cold_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/synthetic_cold_per_gc.png"><img src="data/images/submitted_evaluation/synthetic_cold_per_gc.png" alt="synthetic_cold_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+
+<blockquote>
+<p>
+If you have run <code>make test_full</code>, your data ends here.
+</p>
+</blockquote>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgc18e7dd" class="outline-2">
+<h2 id="orgc18e7dd"><span class="section-number-2">5</span> JGraphT Benchmark of §4.5</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+We run two benchmarks from from the JGraphT library: <i>maximal clique</i> (MC) (BronKerboschCliqueFinder), and <i>weakly connected components</i> (CC)} (BiconnectivityInspector).
+</p>
+
+<p>
+We use the graph datasets <code>uk-2007-05@100000</code> and <code>enwiki-2018</code>.
+We implement a minimal driver which does nothing more than call
+the APIs from LAW to load the graph, insert all nodes to a new
+graph from JGraphT, and calls a method from JGraphT on the graph
+where almost all processing time is spent.
+</p>
+
+<p>
+Processing the whole graph takes several days so we only use part of the graph as the inputs (both in the paper and in the artefact). 
+</p>
+</div>
+
+<div id="outline-container-org2ec8487" class="outline-3">
+<h3 id="org2ec8487"><span class="section-number-3">5.1</span> Connected Components</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+We did not observe much garbage created at all using the connected components (CC), for either <a href="#org0244b7c">uk</a> or <a href="#orgf842fec">enwiki</a>: the number of GC cycles
+we saw were small, and most of them occured within the first 5
+seconds of VM start-up. This is visible in <a href="#org9a353d3">Table 12</a> and <a href="#org506f810">Table
+15</a>.
+</p>
+
+<p>
+However, we also saw that that time was enough to reorganise the
+objects created in an order facilitating fast mutator access, as
+reflected by low cache missed (<a href="#org0244b7c">uk</a>, <a href="#orgf842fec">enwiki</a>) and reduced execution time (<a href="#org229b764">uk</a>, <a href="#org466cbaf">enwiki</a>) .
+</p>
+
+<table id="org0244b7c" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 10:</span> In paper, this is Figure 7 (left). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/connected_component_uk_mtime.png"><img src="data/images/evaluation/connected_component_uk_mtime.png" alt="connected_component_uk_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/connected_component_uk_mtime.png"><img src="data/images/submitted_evaluation/connected_component_uk_mtime.png" alt="connected_component_uk_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org229b764" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 11:</span> In paper, this is Figure 7 (center). The left plot will be all 0's if perf data could not be obtained on your system. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/connected_component_uk_cache.png"><img src="data/images/evaluation/connected_component_uk_cache.png" alt="connected_component_uk_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/connected_component_uk_cache.png"><img src="data/images/submitted_evaluation/connected_component_uk_cache.png" alt="connected_component_uk_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org9a353d3" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 12:</span> In paper, this is Figure 7 (right). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/connected_component_uk_per_gc.png"><img src="data/images/evaluation/connected_component_uk_per_gc.png" alt="connected_component_uk_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/connected_component_uk_per_gc.png"><img src="data/images/submitted_evaluation/connected_component_uk_per_gc.png" alt="connected_component_uk_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="orgf842fec" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 13:</span> In paper, this is Figure 8 (left). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/connected_component_enwiki_mtime.png"><img src="data/images/evaluation/connected_component_enwiki_mtime.png" alt="connected_component_enwiki_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/connected_component_enwiki_mtime.png"><img src="data/images/submitted_evaluation/connected_component_enwiki_mtime.png" alt="connected_component_enwiki_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org466cbaf" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 14:</span> In paper, this is Figure 8 (center). The left plot will be all 0's if perf data could not be obtained on your system. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/connected_component_enwiki_cache.png"><img src="data/images/evaluation/connected_component_enwiki_cache.png" alt="connected_component_enwiki_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/connected_component_enwiki_cache.png"><img src="data/images/submitted_evaluation/connected_component_enwiki_cache.png" alt="connected_component_enwiki_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org506f810" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 15:</span> In paper, this is Figure 8 (right). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/connected_component_enwiki_per_gc.png"><img src="data/images/evaluation/connected_component_enwiki_per_gc.png" alt="connected_component_enwiki_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/connected_component_enwiki_per_gc.png"><img src="data/images/submitted_evaluation/connected_component_enwiki_per_gc.png" alt="connected_component_enwiki_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+<div id="outline-container-org521c5a6" class="outline-3">
+<h3 id="org521c5a6"><span class="section-number-3">5.2</span> Bron-kerbosch Maximal Clique</h3>
+<div class="outline-text-3" id="text-5-2">
+<p>
+For maximal clique (MC) we saw considerable additional
+allocation happening both both <a href="#org4ecf0a2">uk</a> and <a href="#org6510b3a">enwiki</a>, and we observed
+periodic GC cycles. As with connected components, we observed 
+reduced cache misses (<a href="#orgc3b6db9">uk</a>, <a href="#org4071ef9">enwiki</a>) and faster execution time (<a href="#org420d8c4">uk</a>, <a href="#orgef341a2">enwiki</a>).
+</p>
+
+<p>
+We observed  a large difference between Configuration 2 and
+Configuration 3, which means that many hot objects reside on pages that
+are well populated so that those pages are never added to EC
+according to original ZGC criteria. This lead to a clear
+staircase pattern for configurations with increasing 
+ColdConfidence value (Configs 5&#x2013;7, 8&#x2013;10, 11&#x2013;13, and 14&#x2013;16).
+This demonstrates that HCSGC is able to excavate hot objects buried among cold
+objects using this knob.
+</p>
+
+
+<table id="org420d8c4" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 16:</span> In paper, this is Figure 9 (left). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/maximal_clique_uk_mtime.png"><img src="data/images/evaluation/maximal_clique_uk_mtime.png" alt="maximal_clique_uk_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/maximal_clique_uk_mtime.png"><img src="data/images/submitted_evaluation/maximal_clique_uk_mtime.png" alt="maximal_clique_uk_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="orgc3b6db9" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 17:</span> In paper, this is Figure 9 (center). The left plot will be all 0's if perf data could not be obtained on your system. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/maximal_clique_uk_cache.png"><img src="data/images/evaluation/maximal_clique_uk_cache.png" alt="maximal_clique_uk_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/maximal_clique_uk_cache.png"><img src="data/images/submitted_evaluation/maximal_clique_uk_cache.png" alt="maximal_clique_uk_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org4ecf0a2" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 18:</span> In paper, this is Figure 9 (right). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/maximal_clique_uk_per_gc.png"><img src="data/images/evaluation/maximal_clique_uk_per_gc.png" alt="maximal_clique_uk_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/maximal_clique_uk_per_gc.png"><img src="data/images/submitted_evaluation/maximal_clique_uk_per_gc.png" alt="maximal_clique_uk_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+
+<table id="orgef341a2" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 19:</span> In paper, this is Figure 10 (left). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/maximal_clique_enwiki_mtime.png"><img src="data/images/evaluation/maximal_clique_enwiki_mtime.png" alt="maximal_clique_enwiki_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/maximal_clique_enwiki_mtime.png"><img src="data/images/submitted_evaluation/maximal_clique_enwiki_mtime.png" alt="maximal_clique_enwiki_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org4071ef9" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 20:</span> In paper, this is Figure 10 (center). The left plot will be all 0's if perf data could not be obtained on your system. <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/maximal_clique_enwiki_cache.png"><img src="data/images/evaluation/maximal_clique_enwiki_cache.png" alt="maximal_clique_enwiki_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/maximal_clique_enwiki_cache.png"><img src="data/images/submitted_evaluation/maximal_clique_enwiki_cache.png" alt="maximal_clique_enwiki_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org6510b3a" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 21:</span> In paper, this is Figure 10 (right). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/maximal_clique_enwiki_per_gc.png"><img src="data/images/evaluation/maximal_clique_enwiki_per_gc.png" alt="maximal_clique_enwiki_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/maximal_clique_enwiki_per_gc.png"><img src="data/images/submitted_evaluation/maximal_clique_enwiki_per_gc.png" alt="maximal_clique_enwiki_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+
+
+<div id="outline-container-orge832728" class="outline-2">
+<h2 id="orge832728"><span class="section-number-2">6</span> DaCapo Benchmark Suite of §4.6</h2>
+<div class="outline-text-2" id="text-6">
+<p>
+We looked at two benchmarks from the DaCapo suite of Java
+benchmarks (release version 9.12-bach-MR1). Since HCSGC takes
+advantage of recurring and stable access patterns, it is not
+intended to be used with short running applications. Therefore, we
+only look at benchmarks that support the huge input size setting
+which reduces our candidates to <a href="#org37b4137">tradebeans</a> and <a href="#orgba5c7b2">h2</a>. (Note:
+tradesoap also supports huge input size. We did however see
+crashes similar to the description in an <a href="https://github.com/dacapobench/dacapobench/issues/113">open issue</a> of DaCapo &#x2013; a
+concurrency bug which only sometimes lead to crashes &#x2013; so in the
+end we were not able to include it.).
+</p>
+</div>
+
+
+<div id="outline-container-orgfee33b7" class="outline-3">
+<h3 id="orgfee33b7"><span class="section-number-3">6.1</span> Tradebeans <a id="org37b4137"></a></h3>
+<div class="outline-text-3" id="text-6-1">
+<p>
+For tradebeans, we did not observe much performance improvement
+due to HCSGC, which we attributed to the fact that so many objects
+are very short lived. For such programs, locality benefits must
+come through placement at allocation-time, but HCSGC may only
+improve locality for objects that live more than one GC cycle.
+</p>
+
+<p>
+Out of the 18 HCSGC configurations, 3 were 1% slowdowns, 6 were 1%
+speed-ups, 3 were 2&#x2013;5%, and the remaining 6 performed on-par with
+the baseline (<a href="#orgceb7ae2">Table 22</a>).
+</p>
+
+<table id="orgceb7ae2" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 22:</span> In paper, this is Figure 11 (left). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/tradebeans_mtime.png"><img src="data/images/evaluation/tradebeans_mtime.png" alt="tradebeans_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/tradebeans_mtime.png"><img src="data/images/submitted_evaluation/tradebeans_mtime.png" alt="tradebeans_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org5d9bb97" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 23:</span> In paper, this is Figure 11 (center). The left plot will be all 0's if perf data could not be obtained on your system./The plot to the right is the plot from the paper for comparison./</caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/tradebeans_cache.png"><img src="data/images/evaluation/tradebeans_cache.png" alt="tradebeans_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/tradebeans_cache.png"><img src="data/images/submitted_evaluation/tradebeans_cache.png" alt="tradebeans_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org44aa020" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 24:</span> In paper, this is Figure 11 (right). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/tradebeans_per_gc.png"><img src="data/images/evaluation/tradebeans_per_gc.png" alt="tradebeans_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/tradebeans_per_gc.png"><img src="data/images/submitted_evaluation/tradebeans_per_gc.png" alt="tradebeans_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+<div id="outline-container-org7b77c2b" class="outline-3">
+<h3 id="org7b77c2b"><span class="section-number-3">6.2</span> H2 <a id="orgba5c7b2"></a></h3>
+<div class="outline-text-3" id="text-6-2">
+<p>
+For h2, we observed 5&#x2013;9% improvements for several configurations,
+with about 2% overhead for tracking hotness (Configuration 5).
+</p>
+
+<p>
+We saw that RelocateAllSmallPages outperformed ColdConfidence,
+which may indicate that the same set of hot objects are accessed
+but with different access pattern.
+</p>
+
+<table id="org2f69e44" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 25:</span> In paper, this is Figure 12 (left). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/h2_mtime.png"><img src="data/images/evaluation/h2_mtime.png" alt="h2_mtime.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/h2_mtime.png"><img src="data/images/submitted_evaluation/h2_mtime.png" alt="h2_mtime.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org0871f83" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 26:</span> In paper, this is Figure 12 (center). The left plot will be all 0's if perf data could not be obtained on your system./The plot to the right is the plot from the paper for comparison./</caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/h2_cache.png"><img src="data/images/evaluation/h2_cache.png" alt="h2_cache.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/h2_cache.png"><img src="data/images/submitted_evaluation/h2_cache.png" alt="h2_cache.png" /></a></td>
+</tr>
+</tbody>
+</table>
+
+<table id="org1b1ea8b" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+<caption class="t-above"><span class="table-number">Table 27:</span> In paper, this is Figure 12 (right). <i>The plot to the right is the plot from the paper for comparison.</i></caption>
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><a href="data/images/evaluation/h2_per_gc.png"><img src="data/images/evaluation/h2_per_gc.png" alt="h2_per_gc.png" /></a></td>
+<td class="org-left"><a href="data/images/submitted_evaluation/h2_per_gc.png"><img src="data/images/submitted_evaluation/h2_per_gc.png" alt="h2_per_gc.png" /></a></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1">1</a></sup> <div class="footpara">Meaning a large number of pages are selected for relocation.</div></div>
+
+
+</div>
+</div></div>
+<div id="postamble" class="status">
+<p class="author">Author: Tobias Wrigstad</p>
+<p class="date">Created: 2020-02-27 Tor 14:06</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>

@@ -1,0 +1,1164 @@
+From a8ff5c3e171e72725cef9d73591b878cd802efc0 Mon Sep 17 00:00:00 2001
+From: Albert Netymk <albertnetymk@gmail.com>
+Date: Tue, 27 Aug 2019 23:22:07 +0200
+Subject: [PATCH] hcsgc
+
+---
+ src/hotspot/share/gc/shared/gc_globals.hpp    | 18 ++++
+ src/hotspot/share/gc/z/zBarrier.cpp           | 59 +++++++++++--
+ src/hotspot/share/gc/z/zBarrier.hpp           |  8 +-
+ src/hotspot/share/gc/z/zBarrier.inline.hpp    | 21 ++++-
+ src/hotspot/share/gc/z/zDriver.cpp            | 11 ++-
+ src/hotspot/share/gc/z/zGlobals.hpp           | 15 ++++
+ src/hotspot/share/gc/z/zHeap.hpp              |  7 +-
+ src/hotspot/share/gc/z/zHeap.inline.hpp       | 29 +++++-
+ src/hotspot/share/gc/z/zLiveMap.cpp           | 18 ++--
+ src/hotspot/share/gc/z/zLiveMap.hpp           |  4 +-
+ src/hotspot/share/gc/z/zLiveMap.inline.hpp    |  5 +-
+ src/hotspot/share/gc/z/zMark.cpp              |  3 +-
+ src/hotspot/share/gc/z/zObjectAllocator.cpp   | 83 ++++++++++++++++-
+ src/hotspot/share/gc/z/zObjectAllocator.hpp   | 10 +++
+ .../share/gc/z/zOopClosures.inline.hpp        |  6 +-
+ src/hotspot/share/gc/z/zPage.cpp              |  9 +-
+ src/hotspot/share/gc/z/zPage.hpp              |  9 ++
+ src/hotspot/share/gc/z/zPage.inline.hpp       | 88 +++++++++++++++++++
+ src/hotspot/share/gc/z/zRelocate.cpp          | 35 +++++---
+ src/hotspot/share/gc/z/zRelocate.hpp          |  4 +-
+ .../share/gc/z/zRelocationSetSelector.cpp     | 68 ++++++++++++--
+ .../share/gc/z/zRelocationSetSelector.hpp     |  4 +
+ 22 files changed, 460 insertions(+), 54 deletions(-)
+
+diff --git a/src/hotspot/share/gc/shared/gc_globals.hpp b/src/hotspot/share/gc/shared/gc_globals.hpp
+index 39d2d1e990..0eed768834 100644
+--- a/src/hotspot/share/gc/shared/gc_globals.hpp
++++ b/src/hotspot/share/gc/shared/gc_globals.hpp
+@@ -199,6 +199,24 @@
+   experimental(bool, UseZGC, false,                                         \
+           "Use the Z garbage collector")                                    \
+                                                                             \
++  product(bool, UseColdPage, false,                                         \
++          "Use cold pages for cold objects along with ZGC")                 \
++                                                                            \
++  product(bool, UseLazyRelocate, false,                                     \
++          "Use lazy relocation along with ZGC")                             \
++                                                                            \
++  product(bool, UseRelocateAllSmallPages, false,                            \
++          "Use relocate all small pages unconditionally ZGC")               \
++                                                                            \
++  product(uint, HotCycles, 0,                                               \
++          "refreshing hotness info every n cycles; 0 disables hot info")    \
++                                                                            \
++  product(uint, MinRelocatableAge, 1,                                       \
++          ">=1; #GC cycle to wait before relocating the page")              \
++                                                                            \
++  product(uint, ColdConfidence, 0,                                          \
++          "% of cold objects are treated as dead objects")                  \
++                                                                            \
+   experimental(bool, UseShenandoahGC, false,                                \
+           "Use the Shenandoah garbage collector")                           \
+                                                                             \
+diff --git a/src/hotspot/share/gc/z/zBarrier.cpp b/src/hotspot/share/gc/z/zBarrier.cpp
+index 494828c8bf..dece04b38a 100644
+--- a/src/hotspot/share/gc/z/zBarrier.cpp
++++ b/src/hotspot/share/gc/z/zBarrier.cpp
+@@ -73,8 +73,9 @@ bool ZBarrier::should_mark_through(uintptr_t addr) {
+ }
+ 
+ template <bool follow, bool finalizable, bool publish>
+-uintptr_t ZBarrier::mark(uintptr_t addr) {
++uintptr_t ZBarrier::mark(uintptr_t addr, bool mark_hot) {
+   uintptr_t good_addr;
++  auto heap = ZHeap::heap();
+ 
+   if (ZAddress::is_marked(addr)) {
+     // Already marked, but try to mark though anyway
+@@ -82,16 +83,26 @@ uintptr_t ZBarrier::mark(uintptr_t addr) {
+   } else if (ZAddress::is_remapped(addr)) {
+     // Already remapped, but also needs to be marked
+     good_addr = ZAddress::good(addr);
++    mark_hot = true;
+   } else {
+     // Needs to be both remapped and marked
+     good_addr = remap(addr);
+   }
+ 
++  auto is_mutator_thread = publish == Publish;
++  if (is_mutator_thread) {
++    mark_hot = true;
++  }
++
+   // Mark
+   if (should_mark_through<finalizable>(addr)) {
+     ZHeap::heap()->mark_object<follow, finalizable, publish>(good_addr);
+   }
+ 
++  if (mark_hot) {
++    heap->set_hot(good_addr);
++  }
++
+   return good_addr;
+ }
+ 
+@@ -101,18 +112,19 @@ uintptr_t ZBarrier::remap(uintptr_t addr) {
+   return ZHeap::heap()->remap_object(addr);
+ }
+ 
+-uintptr_t ZBarrier::relocate(uintptr_t addr) {
++uintptr_t ZBarrier::relocate(uintptr_t addr, bool is_hot) {
+   assert(!ZAddress::is_good(addr), "Should not be good");
+   assert(!ZAddress::is_weak_good(addr), "Should not be weak good");
+-  return ZHeap::heap()->relocate_object(addr);
++
++  return ZHeap::heap()->relocate_object(addr, is_hot);
+ }
+ 
+ uintptr_t ZBarrier::relocate_or_mark(uintptr_t addr) {
+-  return during_relocate() ? relocate(addr) : mark<Follow, Strong, Publish>(addr);
++  return during_relocate() ? relocate(addr, true) : mark<Follow, Strong, Publish>(addr);
+ }
+ 
+ uintptr_t ZBarrier::relocate_or_remap(uintptr_t addr) {
+-  return during_relocate() ? relocate(addr) : remap(addr);
++  return during_relocate() ? relocate(addr, true) : remap(addr);
+ }
+ 
+ //
+@@ -170,11 +182,44 @@ uintptr_t ZBarrier::keep_alive_barrier_on_phantom_oop_slow_path(uintptr_t addr)
+   return good_addr;
+ }
+ 
++uintptr_t ZBarrier::keep_alive_barrier_on_phantom_root_oop_slow_path(uintptr_t addr) {
++  uintptr_t good_addr = weak_load_barrier_on_oop_slow_path(addr);
++  assert(ZHeap::heap()->is_object_live(good_addr), "Should be live");
++  // JVM has some internal non-strong roots with phantom strength.
++  ZHeap::heap()->set_hot(good_addr);
++  return good_addr;
++}
++
+ //
+ // Mark barrier
+ //
+ uintptr_t ZBarrier::mark_barrier_on_oop_slow_path(uintptr_t addr) {
+-  return mark<Follow, Strong, Overflow>(addr);
++  if (HotCycles == 0) {
++    return mark<Follow, Strong, Overflow>(addr);
++  }
++
++  const uintptr_t good_addr = mark<Follow, Strong, Overflow>(addr);
++
++  {
++    // If the object is already hot, heal it with good color; hence, fast path.
++    auto heap = ZHeap::heap();
++    if (ZAddress::is_remapped(addr)) {
++      return good_addr;
++    }
++    if (heap->is_object_hot(good_addr)) {
++      return good_addr;
++    }
++  }
++
++  return ZAddress::finalizable_good(good_addr);
++}
++
++uintptr_t ZBarrier::mark_barrier_on_concurrent_root_oop_slow_path(uintptr_t addr) {
++  // return mark<Follow, Strong, Overflow>(addr);
++
++  auto mark_hot = true;
++  auto good_addr = mark<Follow, Strong, Overflow>(addr, mark_hot);
++  return good_addr;
+ }
+ 
+ uintptr_t ZBarrier::mark_barrier_on_finalizable_oop_slow_path(uintptr_t addr) {
+@@ -219,7 +264,7 @@ uintptr_t ZBarrier::relocate_barrier_on_root_oop_slow_path(uintptr_t addr) {
+   assert(during_relocate(), "Invalid phase");
+ 
+   // Relocate
+-  return relocate(addr);
++  return relocate(addr, true);
+ }
+ 
+ //
+diff --git a/src/hotspot/share/gc/z/zBarrier.hpp b/src/hotspot/share/gc/z/zBarrier.hpp
+index 84bf0a41d3..e222b8b5f7 100644
+--- a/src/hotspot/share/gc/z/zBarrier.hpp
++++ b/src/hotspot/share/gc/z/zBarrier.hpp
+@@ -54,9 +54,9 @@ private:
+   static bool during_mark();
+   static bool during_relocate();
+   template <bool finalizable> static bool should_mark_through(uintptr_t addr);
+-  template <bool follow, bool finalizable, bool publish> static uintptr_t mark(uintptr_t addr);
++  template <bool follow, bool finalizable, bool publish> static uintptr_t mark(uintptr_t addr, bool mark_hot = false);
+   static uintptr_t remap(uintptr_t addr);
+-  static uintptr_t relocate(uintptr_t addr);
++  static uintptr_t relocate(uintptr_t addr, bool is_hot);
+   static uintptr_t relocate_or_mark(uintptr_t addr);
+   static uintptr_t relocate_or_remap(uintptr_t addr);
+ 
+@@ -68,9 +68,11 @@ private:
+ 
+   static uintptr_t keep_alive_barrier_on_weak_oop_slow_path(uintptr_t addr);
+   static uintptr_t keep_alive_barrier_on_phantom_oop_slow_path(uintptr_t addr);
++  static uintptr_t keep_alive_barrier_on_phantom_root_oop_slow_path(uintptr_t addr);
+ 
+   static uintptr_t mark_barrier_on_oop_slow_path(uintptr_t addr);
+   static uintptr_t mark_barrier_on_finalizable_oop_slow_path(uintptr_t addr);
++  static uintptr_t mark_barrier_on_concurrent_root_oop_slow_path(uintptr_t addr);
+   static uintptr_t mark_barrier_on_root_oop_slow_path(uintptr_t addr);
+   static uintptr_t mark_barrier_on_invisible_root_oop_slow_path(uintptr_t addr);
+ 
+@@ -104,11 +106,13 @@ public:
+   // Keep alive barrier
+   static void keep_alive_barrier_on_weak_oop_field(volatile oop* p);
+   static void keep_alive_barrier_on_phantom_oop_field(volatile oop* p);
++  static void keep_alive_barrier_on_phantom_concurrent_root_oop_field(volatile oop* p);
+   static void keep_alive_barrier_on_phantom_root_oop_field(oop* p);
+ 
+   // Mark barrier
+   static void mark_barrier_on_oop_field(volatile oop* p, bool finalizable);
+   static void mark_barrier_on_oop_array(volatile oop* p, size_t length, bool finalizable);
++  static void mark_barrier_on_concurrent_root_oop_field(volatile oop* p);
+   static void mark_barrier_on_root_oop_field(oop* p);
+   static void mark_barrier_on_invisible_root_oop_field(oop* p);
+ 
+diff --git a/src/hotspot/share/gc/z/zBarrier.inline.hpp b/src/hotspot/share/gc/z/zBarrier.inline.hpp
+index ba6f305c0c..1e346b3e87 100644
+--- a/src/hotspot/share/gc/z/zBarrier.inline.hpp
++++ b/src/hotspot/share/gc/z/zBarrier.inline.hpp
+@@ -191,7 +191,7 @@ inline oop ZBarrier::load_barrier_on_weak_oop_field_preloaded(volatile oop* p, o
+   verify_on_weak(p);
+ 
+   if (is_resurrection_blocked(p, &o)) {
+-    return weak_barrier<is_good_or_null_fast_path, weak_load_barrier_on_weak_oop_slow_path>(p, o);
++    return weak_barrier<is_good_or_null_fast_path, weak_load_barrier_on_weak_oop_slow_path>(NULL, o);
+   }
+ 
+   return load_barrier_on_oop_field_preloaded(p, o);
+@@ -199,7 +199,7 @@ inline oop ZBarrier::load_barrier_on_weak_oop_field_preloaded(volatile oop* p, o
+ 
+ inline oop ZBarrier::load_barrier_on_phantom_oop_field_preloaded(volatile oop* p, oop o) {
+   if (is_resurrection_blocked(p, &o)) {
+-    return weak_barrier<is_good_or_null_fast_path, weak_load_barrier_on_phantom_oop_slow_path>(p, o);
++    return weak_barrier<is_good_or_null_fast_path, weak_load_barrier_on_phantom_oop_slow_path>(NULL, o);
+   }
+ 
+   return load_barrier_on_oop_field_preloaded(p, o);
+@@ -293,11 +293,18 @@ inline void ZBarrier::keep_alive_barrier_on_phantom_oop_field(volatile oop* p) {
+   barrier<is_good_or_null_fast_path, keep_alive_barrier_on_phantom_oop_slow_path>(p, o);
+ }
+ 
++inline void ZBarrier::keep_alive_barrier_on_phantom_concurrent_root_oop_field(volatile oop* p) {
++  // This operation is only valid when resurrection is blocked.
++  assert(ZResurrection::is_blocked(), "Invalid phase");
++  const oop o = *p;
++  barrier<is_good_or_null_fast_path, keep_alive_barrier_on_phantom_root_oop_slow_path>(p, o);
++}
++
+ inline void ZBarrier::keep_alive_barrier_on_phantom_root_oop_field(oop* p) {
+   // This operation is only valid when resurrection is blocked.
+   assert(ZResurrection::is_blocked(), "Invalid phase");
+   const oop o = *p;
+-  root_barrier<is_good_or_null_fast_path, keep_alive_barrier_on_phantom_oop_slow_path>(p, o);
++  root_barrier<is_good_or_null_fast_path, keep_alive_barrier_on_phantom_root_oop_slow_path>(p, o);
+ }
+ 
+ //
+@@ -321,6 +328,14 @@ inline void ZBarrier::mark_barrier_on_oop_array(volatile oop* p, size_t length,
+   }
+ }
+ 
++inline void ZBarrier::mark_barrier_on_concurrent_root_oop_field(volatile oop* p) {
++  // The fast path only checks for null since the GC worker
++  // threads doing marking wants to mark through good oops.
++  const oop o = *p;
++
++  barrier<is_null_fast_path, mark_barrier_on_concurrent_root_oop_slow_path>(p, o);
++}
++
+ inline void ZBarrier::mark_barrier_on_root_oop_field(oop* p) {
+   const oop o = *p;
+   root_barrier<is_good_or_null_fast_path, mark_barrier_on_root_oop_slow_path>(p, o);
+diff --git a/src/hotspot/share/gc/z/zDriver.cpp b/src/hotspot/share/gc/z/zDriver.cpp
+index f419975c1b..9db209c6b4 100644
+--- a/src/hotspot/share/gc/z/zDriver.cpp
++++ b/src/hotspot/share/gc/z/zDriver.cpp
+@@ -375,6 +375,11 @@ public:
+ void ZDriver::gc(GCCause::Cause cause) {
+   ZDriverGCScope scope(cause);
+ 
++  if (UseLazyRelocate && ZGlobalSeqNum > 1) {
++    // Phase 9: Concurrent Relocate
++    concurrent_relocate();
++  }
++
+   // Phase 1: Pause Mark Start
+   pause_mark_start();
+ 
+@@ -402,8 +407,10 @@ void ZDriver::gc(GCCause::Cause cause) {
+   // Phase 8: Pause Relocate Start
+   pause_relocate_start();
+ 
+-  // Phase 9: Concurrent Relocate
+-  concurrent_relocate();
++  if (!UseLazyRelocate) {
++    // Phase 9: Concurrent Relocate
++    concurrent_relocate();
++  }
+ }
+ 
+ void ZDriver::run_service() {
+diff --git a/src/hotspot/share/gc/z/zGlobals.hpp b/src/hotspot/share/gc/z/zGlobals.hpp
+index fec6376050..674fd00489 100644
+--- a/src/hotspot/share/gc/z/zGlobals.hpp
++++ b/src/hotspot/share/gc/z/zGlobals.hpp
+@@ -27,6 +27,7 @@
+ #include "utilities/globalDefinitions.hpp"
+ #include "utilities/macros.hpp"
+ #include CPU_HEADER(gc/z/zGlobals)
++#include "runtime/globals_extension.hpp"
+ 
+ // Collector name
+ const char* const ZName                         = "The Z Garbage Collector";
+@@ -146,4 +147,18 @@ const size_t      ZMarkTerminateFlushMax        = 3;
+ // Try complete mark timeout
+ const uint64_t    ZMarkCompleteTimeout          = 1; // ms
+ 
++struct HGC {
++  static inline bool should_freeze_in_cycle(uint32_t seq_num) {
++    if (HotCycles == 0) {
++      return false;
++    }
++    if (seq_num < 2) {
++      // we "performed" GC with freezing on startup
++      return true;
++    }
++    // freezing for seq: 1+F, 1+F+F...
++    return ((seq_num - 1) % HotCycles == 0);
++  }
++};
++
+ #endif // SHARE_GC_Z_ZGLOBALS_HPP
+diff --git a/src/hotspot/share/gc/z/zHeap.hpp b/src/hotspot/share/gc/z/zHeap.hpp
+index a771c046b6..3ea092c68e 100644
+--- a/src/hotspot/share/gc/z/zHeap.hpp
++++ b/src/hotspot/share/gc/z/zHeap.hpp
+@@ -125,11 +125,16 @@ public:
+   // Object allocation
+   uintptr_t alloc_tlab(size_t size);
+   uintptr_t alloc_object(size_t size);
++  uintptr_t alloc_object_for_relocation_cold(size_t size);
+   uintptr_t alloc_object_for_relocation(size_t size);
++  void undo_alloc_object_for_relocation_cold(uintptr_t addr, size_t size);
+   void undo_alloc_object_for_relocation(uintptr_t addr, size_t size);
+   bool is_alloc_stalled() const;
+   void check_out_of_memory();
+ 
++  void set_hot(uintptr_t addr);
++  bool is_object_hot(uintptr_t addr) const;
++
+   // Marking
+   bool is_object_live(uintptr_t addr) const;
+   bool is_object_strongly_live(uintptr_t addr) const;
+@@ -145,7 +150,7 @@ public:
+ 
+   // Relocation
+   void relocate_start();
+-  uintptr_t relocate_object(uintptr_t addr);
++  uintptr_t relocate_object(uintptr_t addr, bool is_hot);
+   uintptr_t remap_object(uintptr_t addr);
+   void relocate();
+ 
+diff --git a/src/hotspot/share/gc/z/zHeap.inline.hpp b/src/hotspot/share/gc/z/zHeap.inline.hpp
+index e506f29ce0..b04e6e38cd 100644
+--- a/src/hotspot/share/gc/z/zHeap.inline.hpp
++++ b/src/hotspot/share/gc/z/zHeap.inline.hpp
+@@ -49,6 +49,20 @@ inline uint32_t ZHeap::hash_oop(uintptr_t addr) const {
+   return ZHash::address_to_uint32(offset);
+ }
+ 
++inline void ZHeap::set_hot(uintptr_t addr) {
++  assert(addr != 0, "");
++  if (HotCycles == 0) {
++    return;
++  }
++  ZPage* page = _page_table.get(addr);
++  page->set_hot(addr);
++}
++
++inline bool ZHeap::is_object_hot(uintptr_t addr) const {
++  ZPage* page = _page_table.get(addr);
++  return page->is_object_hot(addr);
++}
++
+ inline bool ZHeap::is_object_live(uintptr_t addr) const {
+   ZPage* page = _page_table.get(addr);
+   return page->is_object_live(addr);
+@@ -81,18 +95,29 @@ inline uintptr_t ZHeap::alloc_object(size_t size) {
+   return addr;
+ }
+ 
++inline uintptr_t ZHeap::alloc_object_for_relocation_cold(size_t size) {
++  uintptr_t addr = _object_allocator.alloc_object_for_relocation_cold(size);
++  assert(ZAddress::is_good_or_null(addr), "Bad address");
++  return addr;
++}
++
+ inline uintptr_t ZHeap::alloc_object_for_relocation(size_t size) {
+   uintptr_t addr = _object_allocator.alloc_object_for_relocation(size);
+   assert(ZAddress::is_good_or_null(addr), "Bad address");
+   return addr;
+ }
+ 
++inline void ZHeap::undo_alloc_object_for_relocation_cold(uintptr_t addr, size_t size) {
++  ZPage* const page = _page_table.get(addr);
++  _object_allocator.undo_alloc_object_for_relocation_cold(page, addr, size);
++}
++
+ inline void ZHeap::undo_alloc_object_for_relocation(uintptr_t addr, size_t size) {
+   ZPage* const page = _page_table.get(addr);
+   _object_allocator.undo_alloc_object_for_relocation(page, addr, size);
+ }
+ 
+-inline uintptr_t ZHeap::relocate_object(uintptr_t addr) {
++inline uintptr_t ZHeap::relocate_object(uintptr_t addr, bool is_hot) {
+   assert(ZGlobalPhase == ZPhaseRelocate, "Relocate not allowed");
+ 
+   ZForwarding* const forwarding = _forwarding_table.get(addr);
+@@ -103,7 +128,7 @@ inline uintptr_t ZHeap::relocate_object(uintptr_t addr) {
+ 
+   // Relocate object
+   const bool retained = forwarding->retain_page();
+-  const uintptr_t new_addr = _relocate.relocate_object(forwarding, addr);
++  const uintptr_t new_addr = _relocate.relocate_object(forwarding, addr, is_hot);
+   if (retained) {
+     forwarding->release_page();
+   }
+diff --git a/src/hotspot/share/gc/z/zLiveMap.cpp b/src/hotspot/share/gc/z/zLiveMap.cpp
+index 62a770c5d9..29503e52f7 100644
+--- a/src/hotspot/share/gc/z/zLiveMap.cpp
++++ b/src/hotspot/share/gc/z/zLiveMap.cpp
+@@ -48,7 +48,7 @@ ZLiveMap::ZLiveMap(uint32_t size) :
+     _bitmap(bitmap_size(size, nsegments)),
+     _segment_shift(exact_log2(segment_size())) {}
+ 
+-void ZLiveMap::reset(size_t index) {
++void ZLiveMap::reset(size_t index, bool reset_stats) {
+   const uint32_t seqnum_initializing = (uint32_t)-1;
+   bool contention = false;
+ 
+@@ -57,13 +57,15 @@ void ZLiveMap::reset(size_t index) {
+   for (uint32_t seqnum = _seqnum; seqnum != ZGlobalSeqNum; seqnum = _seqnum) {
+     if ((seqnum != seqnum_initializing) &&
+         (Atomic::cmpxchg(seqnum_initializing, &_seqnum, seqnum) == seqnum)) {
+-      // Reset marking information
+-      _live_bytes = 0;
+-      _live_objects = 0;
+-
+-      // Clear segment claimed/live bits
+-      segment_live_bits().clear();
+-      segment_claim_bits().clear();
++      if (reset_stats) {
++        // Reset marking information
++        _live_bytes = 0;
++        _live_objects = 0;
++
++        // Clear segment claimed/live bits
++        segment_live_bits().clear();
++        segment_claim_bits().clear();
++      }
+ 
+       // Make sure the newly reset marking information is
+       // globally visible before updating the page seqnum.
+diff --git a/src/hotspot/share/gc/z/zLiveMap.hpp b/src/hotspot/share/gc/z/zLiveMap.hpp
+index ebca270ff9..7b59664bee 100644
+--- a/src/hotspot/share/gc/z/zLiveMap.hpp
++++ b/src/hotspot/share/gc/z/zLiveMap.hpp
+@@ -63,7 +63,7 @@ private:
+ 
+   bool claim_segment(BitMap::idx_t segment);
+ 
+-  void reset(size_t index);
++  void reset(size_t index, bool reset_stats);
+   void reset_segment(BitMap::idx_t segment);
+ 
+   void iterate_segment(ObjectClosure* cl, BitMap::idx_t segment, uintptr_t page_start, size_t page_object_alignment_shift);
+@@ -80,7 +80,7 @@ public:
+   size_t live_bytes() const;
+ 
+   bool get(size_t index) const;
+-  bool set_atomic(size_t index, bool finalizable, bool& inc_live);
++  bool set_atomic(size_t index, bool finalizable, bool& inc_live, bool reset_stats = true);
+ 
+   void inc_live_atomic(uint32_t objects, size_t bytes);
+ 
+diff --git a/src/hotspot/share/gc/z/zLiveMap.inline.hpp b/src/hotspot/share/gc/z/zLiveMap.inline.hpp
+index 2cf43da972..d48d5e39f3 100644
+--- a/src/hotspot/share/gc/z/zLiveMap.inline.hpp
++++ b/src/hotspot/share/gc/z/zLiveMap.inline.hpp
+@@ -102,11 +102,12 @@ inline bool ZLiveMap::get(size_t index) const {
+          _bitmap.at(index);          // Object is marked
+ }
+ 
+-inline bool ZLiveMap::set_atomic(size_t index, bool finalizable, bool& inc_live) {
++inline bool ZLiveMap::set_atomic(size_t index, bool finalizable, bool&
++inc_live, bool reset_stats) {
+   if (!is_marked()) {
+     // First object to be marked during this
+     // cycle, reset marking information.
+-    reset(index);
++    reset(index, reset_stats);
+   }
+ 
+   const BitMap::idx_t segment = index_to_segment(index);
+diff --git a/src/hotspot/share/gc/z/zMark.cpp b/src/hotspot/share/gc/z/zMark.cpp
+index 5dd3f6241d..eced77ba43 100644
+--- a/src/hotspot/share/gc/z/zMark.cpp
++++ b/src/hotspot/share/gc/z/zMark.cpp
+@@ -631,7 +631,8 @@ void ZMark::work(uint64_t timeout_in_millis) {
+ class ZMarkConcurrentRootsIteratorClosure : public ZRootsIteratorClosure {
+ public:
+   virtual void do_oop(oop* p) {
+-    ZBarrier::mark_barrier_on_oop_field(p, false /* finalizable */);
++    // ZBarrier::mark_barrier_on_oop_field(p, false /* finalizable */);
++    ZBarrier::mark_barrier_on_concurrent_root_oop_field(p);
+   }
+ 
+   virtual void do_oop(narrowOop* p) {
+diff --git a/src/hotspot/share/gc/z/zObjectAllocator.cpp b/src/hotspot/share/gc/z/zObjectAllocator.cpp
+index abdbbe1714..533b1990c8 100644
+--- a/src/hotspot/share/gc/z/zObjectAllocator.cpp
++++ b/src/hotspot/share/gc/z/zObjectAllocator.cpp
+@@ -46,7 +46,9 @@ ZObjectAllocator::ZObjectAllocator() :
+     _undone(0),
+     _shared_medium_page(NULL),
+     _shared_small_page(NULL),
+-    _worker_small_page(NULL) {}
++    _worker_small_page(NULL),
++    _worker_small_page_cold(NULL)
++    {}
+ 
+ ZPage* ZObjectAllocator::alloc_page(uint8_t type, size_t size, ZAllocationFlags flags) {
+   ZPage* const page = ZHeap::heap()->alloc_page(type, size, flags);
+@@ -144,6 +146,28 @@ uintptr_t ZObjectAllocator::alloc_small_object_from_nonworker(size_t size, ZAllo
+   return alloc_object_in_shared_page(_shared_small_page.addr(), ZPageTypeSmall, ZPageSizeSmall, size, flags);
+ }
+ 
++uintptr_t ZObjectAllocator::alloc_small_object_from_worker_cold(size_t size, ZAllocationFlags flags) {
++  assert(ZThread::is_worker(), "Should be a worker thread");
++
++  ZPage* page = _worker_small_page_cold.get();
++  uintptr_t addr = 0;
++
++  if (page != NULL) {
++    addr = page->alloc_object(size);
++  }
++
++  if (addr == 0) {
++    // Allocate new page
++    page = alloc_page(ZPageTypeSmall, ZPageSizeSmall, flags);
++    if (page != NULL) {
++      addr = page->alloc_object(size);
++    }
++    _worker_small_page_cold.set(page);
++  }
++
++  return addr;
++}
++
+ uintptr_t ZObjectAllocator::alloc_small_object_from_worker(size_t size, ZAllocationFlags flags) {
+   assert(ZThread::is_worker(), "Should be a worker thread");
+ 
+@@ -166,6 +190,11 @@ uintptr_t ZObjectAllocator::alloc_small_object_from_worker(size_t size, ZAllocat
+   return addr;
+ }
+ 
++uintptr_t ZObjectAllocator::alloc_small_object_cold(size_t size, ZAllocationFlags flags) {
++  assert(flags.worker_thread(), "");
++  return alloc_small_object_from_worker_cold(size, flags);
++}
++
+ uintptr_t ZObjectAllocator::alloc_small_object(size_t size, ZAllocationFlags flags) {
+   if (flags.worker_thread()) {
+     return alloc_small_object_from_worker(size, flags);
+@@ -174,6 +203,21 @@ uintptr_t ZObjectAllocator::alloc_small_object(size_t size, ZAllocationFlags fla
+   }
+ }
+ 
++uintptr_t ZObjectAllocator::alloc_object_cold(size_t size, ZAllocationFlags flags) {
++  assert(size <= ZObjectSizeLimitSmall, "");
++  return alloc_small_object_cold(size, flags);
++  // if (size <= ZObjectSizeLimitSmall) {
++  //   // Small
++  //   return alloc_small_object_cold(size, flags);
++  // } else if (size <= ZObjectSizeLimitMedium) {
++  //   // Medium
++  //   return alloc_medium_object(size, flags);
++  // } else {
++  //   // Large
++  //   return alloc_large_object(size, flags);
++  // }
++}
++
+ uintptr_t ZObjectAllocator::alloc_object(size_t size, ZAllocationFlags flags) {
+   if (size <= ZObjectSizeLimitSmall) {
+     // Small
+@@ -196,6 +240,21 @@ uintptr_t ZObjectAllocator::alloc_object(size_t size) {
+   return alloc_object(size, flags);
+ }
+ 
++uintptr_t ZObjectAllocator::alloc_object_for_relocation_cold(size_t size) {
++  assert(ZThread::is_java() || ZThread::is_vm() || ZThread::is_worker() || ZThread::is_runtime_worker(),
++         "Unknown thread");
++
++  ZAllocationFlags flags;
++  flags.set_relocation();
++  flags.set_non_blocking();
++
++  assert(ZThread::is_worker(), "");
++
++  flags.set_worker_thread();
++
++  return alloc_object_cold(size, flags);
++}
++
+ uintptr_t ZObjectAllocator::alloc_object_for_relocation(size_t size) {
+   assert(ZThread::is_java() || ZThread::is_vm() || ZThread::is_worker() || ZThread::is_runtime_worker(),
+          "Unknown thread");
+@@ -233,6 +292,16 @@ bool ZObjectAllocator::undo_alloc_small_object_from_nonworker(ZPage* page, uintp
+   return page->undo_alloc_object_atomic(addr, size);
+ }
+ 
++bool ZObjectAllocator::undo_alloc_small_object_from_worker_cold(ZPage* page, uintptr_t addr, size_t size) {
++  assert(page->type() == ZPageTypeSmall, "Invalid page type");
++  assert(page == _worker_small_page_cold.get(), "Invalid page");
++
++  // Non-atomic undo on worker-local page
++  const bool success = page->undo_alloc_object(addr, size);
++  assert(success, "Should always succeed");
++  return success;
++}
++
+ bool ZObjectAllocator::undo_alloc_small_object_from_worker(ZPage* page, uintptr_t addr, size_t size) {
+   assert(page->type() == ZPageTypeSmall, "Invalid page type");
+   assert(page == _worker_small_page.get(), "Invalid page");
+@@ -263,6 +332,17 @@ bool ZObjectAllocator::undo_alloc_object(ZPage* page, uintptr_t addr, size_t siz
+   }
+ }
+ 
++void ZObjectAllocator::undo_alloc_object_for_relocation_cold(ZPage* page, uintptr_t addr, size_t size) {
++  undo_alloc_small_object_from_worker_cold(page, addr, size);
++  // if (size <= ZObjectSizeLimitSmall) {
++  //   assert(page->type() == ZPageTypeSmall, "");
++  //   auto success = undo_alloc_small_object_from_worker_cold(page, addr, size);
++  //   assert(success, "");
++  //   return;
++  // }
++  // undo_alloc_object_for_relocation(page, addr, size);
++}
++
+ void ZObjectAllocator::undo_alloc_object_for_relocation(ZPage* page, uintptr_t addr, size_t size) {
+   if (undo_alloc_object(page, addr, size)) {
+     ZStatInc(ZCounterUndoObjectAllocationSucceeded);
+@@ -312,4 +392,5 @@ void ZObjectAllocator::retire_pages() {
+   _shared_medium_page.set(NULL);
+   _shared_small_page.set_all(NULL);
+   _worker_small_page.set_all(NULL);
++  _worker_small_page_cold.set_all(NULL);
+ }
+diff --git a/src/hotspot/share/gc/z/zObjectAllocator.hpp b/src/hotspot/share/gc/z/zObjectAllocator.hpp
+index 6554597975..e4aef1e2a3 100644
+--- a/src/hotspot/share/gc/z/zObjectAllocator.hpp
++++ b/src/hotspot/share/gc/z/zObjectAllocator.hpp
+@@ -36,6 +36,7 @@ private:
+   ZContended<ZPage*> _shared_medium_page;
+   ZPerCPU<ZPage*>    _shared_small_page;
+   ZPerWorker<ZPage*> _worker_small_page;
++  ZPerWorker<ZPage*> _worker_small_page_cold;
+ 
+   ZPage* alloc_page(uint8_t type, size_t size, ZAllocationFlags flags);
+   void undo_alloc_page(ZPage* page);
+@@ -51,13 +52,19 @@ private:
+   uintptr_t alloc_large_object(size_t size, ZAllocationFlags flags);
+   uintptr_t alloc_medium_object(size_t size, ZAllocationFlags flags);
+   uintptr_t alloc_small_object_from_nonworker(size_t size, ZAllocationFlags flags);
++  uintptr_t alloc_small_object_from_worker_cold(size_t size, ZAllocationFlags flags);
+   uintptr_t alloc_small_object_from_worker(size_t size, ZAllocationFlags flags);
++
++  uintptr_t alloc_small_object_cold(size_t size, ZAllocationFlags flags);
+   uintptr_t alloc_small_object(size_t size, ZAllocationFlags flags);
++
++  uintptr_t alloc_object_cold(size_t size, ZAllocationFlags flags);
+   uintptr_t alloc_object(size_t size, ZAllocationFlags flags);
+ 
+   bool undo_alloc_large_object(ZPage* page);
+   bool undo_alloc_medium_object(ZPage* page, uintptr_t addr, size_t size);
+   bool undo_alloc_small_object_from_nonworker(ZPage* page, uintptr_t addr, size_t size);
++  bool undo_alloc_small_object_from_worker_cold(ZPage* page, uintptr_t addr, size_t size);
+   bool undo_alloc_small_object_from_worker(ZPage* page, uintptr_t addr, size_t size);
+   bool undo_alloc_small_object(ZPage* page, uintptr_t addr, size_t size);
+   bool undo_alloc_object(ZPage* page, uintptr_t addr, size_t size);
+@@ -67,7 +74,10 @@ public:
+ 
+   uintptr_t alloc_object(size_t size);
+ 
++  uintptr_t alloc_object_for_relocation_cold(size_t size);
+   uintptr_t alloc_object_for_relocation(size_t size);
++
++  void undo_alloc_object_for_relocation_cold(ZPage* page, uintptr_t addr, size_t size);
+   void undo_alloc_object_for_relocation(ZPage* page, uintptr_t addr, size_t size);
+ 
+   size_t used() const;
+diff --git a/src/hotspot/share/gc/z/zOopClosures.inline.hpp b/src/hotspot/share/gc/z/zOopClosures.inline.hpp
+index 3ff1b7a6a4..5e00022b88 100644
+--- a/src/hotspot/share/gc/z/zOopClosures.inline.hpp
++++ b/src/hotspot/share/gc/z/zOopClosures.inline.hpp
+@@ -77,7 +77,11 @@ inline bool ZPhantomIsAliveObjectClosure::do_object_b(oop o) {
+ }
+ 
+ inline void ZPhantomKeepAliveOopClosure::do_oop(oop* p) {
+-  ZBarrier::keep_alive_barrier_on_phantom_oop_field(p);
++  // ZBarrier::keep_alive_barrier_on_phantom_oop_field(p);
++  ZBarrier::keep_alive_barrier_on_phantom_root_oop_field(p);
++
++  // In STW2: process_weak_roots
++  assert((oop)*(volatile oop*)p != nullptr, "");
+ }
+ 
+ inline void ZPhantomKeepAliveOopClosure::do_oop(narrowOop* p) {
+diff --git a/src/hotspot/share/gc/z/zPage.cpp b/src/hotspot/share/gc/z/zPage.cpp
+index cf0c6992f8..0db76f14b6 100644
+--- a/src/hotspot/share/gc/z/zPage.cpp
++++ b/src/hotspot/share/gc/z/zPage.cpp
+@@ -36,7 +36,8 @@ ZPage::ZPage(const ZVirtualMemory& vmem, const ZPhysicalMemory& pmem) :
+     _top(start()),
+     _livemap(object_max_count()),
+     _last_used(0),
+-    _physical(pmem) {
++    _physical(pmem),
++    _hotmap(object_max_count()) {
+   assert_initialized();
+ }
+ 
+@@ -48,7 +49,8 @@ ZPage::ZPage(uint8_t type, const ZVirtualMemory& vmem, const ZPhysicalMemory& pm
+     _top(start()),
+     _livemap(object_max_count()),
+     _last_used(0),
+-    _physical(pmem) {
++    _physical(pmem),
++    _hotmap(object_max_count()) {
+   assert_initialized();
+ }
+ 
+@@ -65,6 +67,7 @@ void ZPage::reset() {
+   _seqnum = ZGlobalSeqNum;
+   _top = start();
+   _livemap.reset();
++  _hotmap.reset();
+   _last_used = 0;
+ }
+ 
+@@ -72,6 +75,7 @@ ZPage* ZPage::retype(uint8_t type) {
+   assert(_type != type, "Invalid retype");
+   _type = type;
+   _livemap.resize(object_max_count());
++  _hotmap.resize(object_max_count());
+   return this;
+ }
+ 
+@@ -88,6 +92,7 @@ ZPage* ZPage::split(uint8_t type, size_t size) {
+   _type = type_from_size(_virtual.size());
+   _top = start();
+   _livemap.resize(object_max_count());
++  _hotmap.resize(object_max_count());
+ 
+   // Create new page, inherit _seqnum and _last_used
+   ZPage* const page = new ZPage(type, vmem, pmem);
+diff --git a/src/hotspot/share/gc/z/zPage.hpp b/src/hotspot/share/gc/z/zPage.hpp
+index 57d1395fe7..e9387135cc 100644
+--- a/src/hotspot/share/gc/z/zPage.hpp
++++ b/src/hotspot/share/gc/z/zPage.hpp
+@@ -48,6 +48,8 @@ private:
+   void assert_initialized() const;
+ 
+   uint8_t type_from_size(size_t size) const;
++  ZLiveMap _hotmap;
++  uint32_t _weighted_live_bytes;
+   const char* type_to_string() const;
+ 
+   bool is_object_marked(uintptr_t addr) const;
+@@ -89,15 +91,22 @@ public:
+   ZPage* split(uint8_t type, size_t size);
+ 
+   bool is_in(uintptr_t addr) const;
++  bool is_in_range(uintptr_t addr) const;
+ 
+   bool is_marked() const;
+   bool is_object_live(uintptr_t addr) const;
+   bool is_object_strongly_live(uintptr_t addr) const;
+   bool mark_object(uintptr_t addr, bool finalizable, bool& inc_live);
+ 
++  void set_hot(uintptr_t addr);
++  bool is_object_hot(uintptr_t addr) const;
++
+   void inc_live_atomic(uint32_t objects, size_t bytes);
+   uint32_t live_objects() const;
+   size_t live_bytes() const;
++  void calc_weighted_live_bytes();
++  size_t weighted_live_bytes() const;
++  size_t hot_bytes() const;
+ 
+   void object_iterate(ObjectClosure* cl);
+ 
+diff --git a/src/hotspot/share/gc/z/zPage.inline.hpp b/src/hotspot/share/gc/z/zPage.inline.hpp
+index fe3e940639..ce1e86e76d 100644
+--- a/src/hotspot/share/gc/z/zPage.inline.hpp
++++ b/src/hotspot/share/gc/z/zPage.inline.hpp
+@@ -177,6 +177,11 @@ inline bool ZPage::is_in(uintptr_t addr) const {
+   return offset >= start() && offset < top();
+ }
+ 
++inline bool ZPage::is_in_range(uintptr_t addr) const {
++  const uintptr_t offset = ZAddress::offset(addr);
++  return offset >= start() && offset < end();
++}
++
+ inline bool ZPage::is_marked() const {
+   assert(is_relocatable(), "Invalid page state");
+   return _livemap.is_marked();
+@@ -210,6 +215,54 @@ inline bool ZPage::mark_object(uintptr_t addr, bool finalizable, bool& inc_live)
+   return _livemap.set_atomic(index, finalizable, inc_live);
+ }
+ 
++inline void ZPage::set_hot(uintptr_t addr) {
++  assert(ZGlobalSeqNum >= 2, "");
++  assert(HotCycles != 0, "");
++  assert(is_in_range(addr), "into this page");
++  if (type() == ZPageTypeLarge) {
++    return;
++  }
++  if (UseColdPage && type() != ZPageTypeSmall) {
++    return;
++  }
++  if (ZGlobalPhase != ZPhaseRelocate) {
++    assert(is_in(addr), "Invalid address");
++    if (!is_relocatable()) {
++      return;
++    }
++  }
++  size_t index = ((ZAddress::offset(addr) - start()) >> object_alignment_shift()) * 2;
++  // reset hotmap if we did freezing in previous cycle
++  auto reset_stats = HGC::should_freeze_in_cycle(ZGlobalSeqNum - 1);
++  bool inc_live;
++  auto success = _hotmap.set_atomic(index, true, inc_live, reset_stats);
++  assert(success == inc_live, "");
++  // TODO(albert): it's unclear to me if we should collect hot bytes here or
++  // count them by iterating over live map and check if that object is hot
++  if (success && ZGlobalPhase == ZPhaseMark) {
++    // only make sense before EC is selected
++    const size_t size = ZUtils::object_size(ZAddress::good(addr));
++    const size_t aligned_size = align_up(size, object_alignment());
++    _hotmap.inc_live_atomic(1, aligned_size);
++  }
++}
++
++inline bool ZPage::is_object_hot(uintptr_t addr) const {
++  assert(is_in_range(addr), "Invalid address");
++  assert(HotCycles != 0, "");
++  if (type() == ZPageTypeLarge) {
++    return true;
++  }
++  if (UseColdPage && type() != ZPageTypeSmall) {
++    return true;
++  }
++  if (ZGlobalSeqNum - _seqnum <= MinRelocatableAge) {
++    return true;
++  }
++  const size_t index = ((ZAddress::offset(addr) - start()) >> object_alignment_shift()) * 2;
++  return _hotmap.get(index);
++}
++
+ inline void ZPage::inc_live_atomic(uint32_t objects, size_t bytes) {
+   _livemap.inc_live_atomic(objects, bytes);
+ }
+@@ -224,6 +277,41 @@ inline size_t ZPage::live_bytes() const {
+   return _livemap.live_bytes();
+ }
+ 
++inline void ZPage::calc_weighted_live_bytes() {
++  assert(is_marked(), "Should be marked");
++  assert(MinRelocatableAge >= 1, "");
++  if (!HGC::should_freeze_in_cycle(ZGlobalSeqNum)
++      || ZGlobalSeqNum - _seqnum <= MinRelocatableAge
++      ) {
++    _weighted_live_bytes = live_bytes();
++    return;
++  }
++
++  if (type() == ZPageTypeSmall && ColdConfidence != 0) {
++    auto hot_bytes = MIN2(_hotmap.live_bytes(), live_bytes());
++    auto cold_bytes = live_bytes() - hot_bytes;
++    if (cold_bytes == live_bytes()) {
++      _weighted_live_bytes = cold_bytes;
++      return;
++    }
++    _weighted_live_bytes = hot_bytes + (size_t) (cold_bytes * (1 -  ColdConfidence / 100.0));
++    return;
++  }
++
++  _weighted_live_bytes = live_bytes();
++}
++
++inline size_t ZPage::weighted_live_bytes() const {
++  assert(is_marked(), "Should be marked");
++  return _weighted_live_bytes;
++}
++
++inline size_t ZPage::hot_bytes() const {
++  assert(is_marked(), "Should be marked");
++  assert(ZGlobalPhase == ZPhaseMarkCompleted, "");
++  return _hotmap.live_bytes();
++}
++
+ inline void ZPage::object_iterate(ObjectClosure* cl) {
+   _livemap.iterate(cl, ZAddress::good(start()), object_alignment_shift());
+ }
+diff --git a/src/hotspot/share/gc/z/zRelocate.cpp b/src/hotspot/share/gc/z/zRelocate.cpp
+index c653e8a68e..2d55f89537 100644
+--- a/src/hotspot/share/gc/z/zRelocate.cpp
++++ b/src/hotspot/share/gc/z/zRelocate.cpp
+@@ -86,7 +86,7 @@ void ZRelocate::start() {
+   _workers->run_parallel(&task);
+ }
+ 
+-uintptr_t ZRelocate::relocate_object_inner(ZForwarding* forwarding, uintptr_t from_index, uintptr_t from_offset) const {
++uintptr_t ZRelocate::relocate_object_inner(ZForwarding* forwarding, uintptr_t from_index, uintptr_t from_offset, bool is_hot) const {
+   ZForwardingCursor cursor;
+ 
+   // Lookup forwarding entry
+@@ -106,7 +106,15 @@ uintptr_t ZRelocate::relocate_object_inner(ZForwarding* forwarding, uintptr_t fr
+   // Allocate object
+   const uintptr_t from_good = ZAddress::good(from_offset);
+   const size_t size = ZUtils::object_size(from_good);
+-  const uintptr_t to_good = ZHeap::heap()->alloc_object_for_relocation(size);
++  auto heap = ZHeap::heap();
++  auto is_cold = UseColdPage
++                 && !is_hot
++                 && HGC::should_freeze_in_cycle(ZGlobalSeqNum)
++                 && !heap->is_object_hot(from_good);
++  const uintptr_t to_good = is_cold
++    ? heap->alloc_object_for_relocation_cold(size)
++    : heap->alloc_object_for_relocation(size);
++  // const uintptr_t to_good = ZHeap::heap()->alloc_object_for_relocation(size);
+   if (to_good == 0) {
+     // Failed, in-place forward
+     return forwarding->insert(from_index, from_offset, &cursor);
+@@ -124,21 +132,26 @@ uintptr_t ZRelocate::relocate_object_inner(ZForwarding* forwarding, uintptr_t fr
+   }
+ 
+   // Relocation contention
+-  ZStatInc(ZCounterRelocationContention);
+-  log_trace(gc)("Relocation contention, thread: " PTR_FORMAT " (%s), forwarding: " PTR_FORMAT
+-                ", entry: " SIZE_FORMAT ", oop: " PTR_FORMAT ", size: " SIZE_FORMAT,
+-                ZThread::id(), ZThread::name(), p2i(forwarding), cursor, from_good, size);
+-
+-  // Try undo allocation
+-  ZHeap::heap()->undo_alloc_object_for_relocation(to_good, size);
++  if (is_cold) {
++    assert(UseColdPage, "");
++    heap->undo_alloc_object_for_relocation_cold(to_good, size);
++  } else {
++    ZStatInc(ZCounterRelocationContention);
++    log_trace(gc)("Relocation contention, thread: " PTR_FORMAT " (%s), forwarding: " PTR_FORMAT
++                  ", entry: " SIZE_FORMAT ", oop: " PTR_FORMAT ", size: " SIZE_FORMAT,
++                  ZThread::id(), ZThread::name(), p2i(forwarding), cursor, from_good, size);
++
++    // Try undo allocation
++    heap->undo_alloc_object_for_relocation(to_good, size);
++  }
+ 
+   return to_offset_final;
+ }
+ 
+-uintptr_t ZRelocate::relocate_object(ZForwarding* forwarding, uintptr_t from_addr) const {
++uintptr_t ZRelocate::relocate_object(ZForwarding* forwarding, uintptr_t from_addr, bool is_hot) const {
+   const uintptr_t from_offset = ZAddress::offset(from_addr);
+   const uintptr_t from_index = (from_offset - forwarding->start()) >> forwarding->object_alignment_shift();
+-  const uintptr_t to_offset = relocate_object_inner(forwarding, from_index, from_offset);
++  const uintptr_t to_offset = relocate_object_inner(forwarding, from_index, from_offset, is_hot);
+ 
+   if (from_offset == to_offset) {
+     // In-place forwarding, pin page
+diff --git a/src/hotspot/share/gc/z/zRelocate.hpp b/src/hotspot/share/gc/z/zRelocate.hpp
+index 546ddd2282..14763c66c5 100644
+--- a/src/hotspot/share/gc/z/zRelocate.hpp
++++ b/src/hotspot/share/gc/z/zRelocate.hpp
+@@ -37,13 +37,13 @@ private:
+   ZWorkers* const _workers;
+ 
+   ZForwarding* forwarding_for_page(ZPage* page) const;
+-  uintptr_t relocate_object_inner(ZForwarding* forwarding, uintptr_t from_index, uintptr_t from_offset) const;
++  uintptr_t relocate_object_inner(ZForwarding* forwarding, uintptr_t from_index, uintptr_t from_offset, bool is_hot) const;
+   bool work(ZRelocationSetParallelIterator* iter);
+ 
+ public:
+   ZRelocate(ZWorkers* workers);
+ 
+-  uintptr_t relocate_object(ZForwarding* forwarding, uintptr_t from_addr) const;
++  uintptr_t relocate_object(ZForwarding* forwarding, uintptr_t from_addr, bool is_hot = false) const;
+   uintptr_t forward_object(ZForwarding* forwarding, uintptr_t from_addr) const;
+ 
+   void start();
+diff --git a/src/hotspot/share/gc/z/zRelocationSetSelector.cpp b/src/hotspot/share/gc/z/zRelocationSetSelector.cpp
+index cf86de058e..7773dee2b7 100644
+--- a/src/hotspot/share/gc/z/zRelocationSetSelector.cpp
++++ b/src/hotspot/share/gc/z/zRelocationSetSelector.cpp
+@@ -55,6 +55,10 @@ void ZRelocationSetSelectorGroup::register_live_page(ZPage* page, size_t garbage
+   }
+ }
+ 
++void ZRelocationSetSelectorGroup::register_live_page_nonzero(ZPage* page, size_t garbage) {
++  _registered_pages.add(page);
++}
++
+ void ZRelocationSetSelectorGroup::semi_sort() {
+   // Semi-sort registered pages by live bytes in ascending order
+   const size_t npartitions_shift = 11;
+@@ -74,7 +78,7 @@ void ZRelocationSetSelectorGroup::semi_sort() {
+   memset(partitions, 0, sizeof(partitions));
+   ZArrayIterator<ZPage*> iter1(&_registered_pages);
+   for (ZPage* page; iter1.next(&page);) {
+-    const size_t index = page->live_bytes() >> partition_size_shift;
++    const size_t index = page->weighted_live_bytes() >> partition_size_shift;
+     partitions[index]++;
+   }
+ 
+@@ -89,7 +93,7 @@ void ZRelocationSetSelectorGroup::semi_sort() {
+   // Sort pages into partitions
+   ZArrayIterator<ZPage*> iter2(&_registered_pages);
+   for (ZPage* page; iter2.next(&page);) {
+-    const size_t index = page->live_bytes() >> partition_size_shift;
++    const size_t index = page->weighted_live_bytes() >> partition_size_shift;
+     const size_t finger = partitions[index]++;
+     assert(_sorted_pages[finger] == NULL, "Invalid finger");
+     _sorted_pages[finger] = page;
+@@ -110,7 +114,7 @@ void ZRelocationSetSelectorGroup::select() {
+ 
+   for (size_t from = 1; from <= npages; from++) {
+     // Add page to the candidate relocation set
+-    from_size += _sorted_pages[from - 1]->live_bytes();
++    from_size += _sorted_pages[from - 1]->weighted_live_bytes();
+ 
+     // Calculate the maximum number of pages needed by the candidate relocation set.
+     // By subtracting the object size limit from the pages size we get the maximum
+@@ -148,8 +152,34 @@ void ZRelocationSetSelectorGroup::select() {
+ 
+   log_debug(gc, reloc)("Relocation Set (%s Pages): " SIZE_FORMAT "->" SIZE_FORMAT ", " SIZE_FORMAT " skipped",
+                        _name, selected_from, selected_to, npages - _nselected);
++  if (_page_size == ZPageSizeSmall) {
++    log_info(gc)("Relocating Set (small pages): " SIZE_FORMAT, _nselected);
++  }
+ }
+ 
++void ZRelocationSetSelectorGroup::select_all() {
++  const size_t npages = _registered_pages.size();
++
++  _sorted_pages = REALLOC_C_HEAP_ARRAY(ZPage*, _sorted_pages, npages, mtGC);
++
++  size_t i = 0;
++  size_t from_size = 0;
++  ZArrayIterator<ZPage*> iter(&_registered_pages);
++  for (ZPage* page; iter.next(&page);) {
++    _sorted_pages[i++] = page;
++    from_size += page->live_bytes();
++  }
++  const size_t selected_to = ceil((double)(from_size) / (double)(_page_size - _object_size_limit));
++  assert(i == npages, "");
++  // Finalize selection
++  _nselected = npages;
++  _relocating = from_size;
++  log_debug(gc, reloc)("Relocation Set (%s Pages): " SIZE_FORMAT "->" SIZE_FORMAT ", " SIZE_FORMAT " skipped",
++                       _name, _nselected, selected_to, 0);
++  log_info(gc)("Relocating Set (small pages): " SIZE_FORMAT, _nselected);
++}
++
++
+ ZPage* const* ZRelocationSetSelectorGroup::selected() const {
+   return _sorted_pages;
+ }
+@@ -171,15 +201,30 @@ ZRelocationSetSelector::ZRelocationSetSelector() :
+     _medium("Medium", ZPageSizeMedium, ZObjectSizeLimitMedium),
+     _live(0),
+     _garbage(0),
+-    _fragmentation(0) {}
++    _fragmentation(0),
++    _small_hot_bytes(0),
++    _small_live_bytes(0) {}
+ 
+ void ZRelocationSetSelector::register_live_page(ZPage* page) {
+   const uint8_t type = page->type();
+   const size_t live = page->live_bytes();
+-  const size_t garbage = page->size() - live;
++  page->calc_weighted_live_bytes();
++  const size_t weighted_live_bytes = page->weighted_live_bytes();
++  const size_t garbage = page->size() - weighted_live_bytes;
+ 
+   if (type == ZPageTypeSmall) {
+-    _small.register_live_page(page, garbage);
++    if (UseRelocateAllSmallPages) {
++      _small.register_live_page_nonzero(page, garbage);
++    } else {
++      _small.register_live_page(page, garbage);
++    }
++    if (HotCycles > 0) {
++      auto hot_bytes = page->hot_bytes();
++      if (hot_bytes > 0) {
++          _small_hot_bytes += hot_bytes;
++          _small_live_bytes += live;
++      }
++    }
+   } else if (type == ZPageTypeMedium) {
+     _medium.register_live_page(page, garbage);
+   } else {
+@@ -203,7 +248,16 @@ void ZRelocationSetSelector::select(ZRelocationSet* relocation_set) {
+ 
+   // Select pages from each group
+   _medium.select();
+-  _small.select();
++  if (UseRelocateAllSmallPages) {
++    _small.select_all();
++  } else {
++    _small.select();
++  }
++
++  if (HotCycles > 0) {
++    log_info(gc)("hot_percentage (hot_bytes/live_bytes): %.1f",
++        (100.0 * _small_hot_bytes)/(_small_live_bytes));
++  }
+ 
+   // Populate relocation set
+   relocation_set->populate(_medium.selected(), _medium.nselected(),
+diff --git a/src/hotspot/share/gc/z/zRelocationSetSelector.hpp b/src/hotspot/share/gc/z/zRelocationSetSelector.hpp
+index 9ef3cec3c3..456ed15917 100644
+--- a/src/hotspot/share/gc/z/zRelocationSetSelector.hpp
++++ b/src/hotspot/share/gc/z/zRelocationSetSelector.hpp
+@@ -52,7 +52,9 @@ public:
+   ~ZRelocationSetSelectorGroup();
+ 
+   void register_live_page(ZPage* page, size_t garbage);
++  void register_live_page_nonzero(ZPage* page, size_t garbage);
+   void select();
++  void select_all();
+ 
+   ZPage* const* selected() const;
+   size_t nselected() const;
+@@ -67,6 +69,8 @@ private:
+   size_t                      _live;
+   size_t                      _garbage;
+   size_t                      _fragmentation;
++  size_t                      _small_hot_bytes;
++  size_t                      _small_live_bytes;
+ 
+ public:
+   ZRelocationSetSelector();
+-- 
+2.20.1
+

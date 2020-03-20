@@ -1,0 +1,398 @@
+#+title: PAPER 99: Improving Program Locality in the GC using Hotness
+
+#+HTML_HEAD_EXTRA: <style> code { background: #ddd; padding: 2px; } </style>
+#+HTML_HEAD_EXTRA: <style> body { width: 800px; margin: auto; } </style>
+#+HTML_HEAD_EXTRA: <style> blockquote { background: #fcc; padding: 2px 14px 2px 14px; } </style>
+
+* Overview
+
+Paper 99 presents HCSGC, built on-top of the ZGC collector in
+OpenJDK. HCSGC use the mutators (the applications' threads) to
+relocate objects on the heap to improve their placement. As a
+consequence of this design, objects touched by a mutator during
+the relocation phase of the GC cycle will be laid out in access
+order which may improve cache performance on subsequent accesses.
+Furthermore, HCSGC can track objects' "hotness". An object is
+"hot" if it was accessed during the last GC cycle, otherwise
+"cold". During GC, hot objects and cold objects are segregated to
+increase the density of hot objects, and weights can be assigned
+to cold objects so that they count less towards the live bytes of
+a ZGC memory page. This can be used to improve the selection of
+what memory pages to relocate during GC, as GC is no longer only
+concerned with freeing memory, but with improving object locality
+in the program.
+
+We demonstrate the impact of our design choices, and the
+applicability of our techniques, through a selection of
+benchmarks.
+
+As the number of tuning knobs are relatively large, the paper
+deals with 19 different configurations for each benchmark with
+several runs (the exact number depending on the benchmark)
+to reach a steady state. To save artefact reviewers' time, the we
+provide a simple test script that generates Figure 4 from
+the paper with a single run. We also provide
+a medium-weight testing option to generate the full Figure 4-6 with
+31 runs (same as in the paper). 
+
+The full benchmarks[fn::Except for SPECJbb2015 which cannot be
+included due to copyright restrictions.] are also provided and can
+take weeks to run, depending on the machine.
+
+After the benchmarks are run, an HTML file is open that shows the
+produced plots with links to the plots of the paper for
+comparison.
+
+This artefact consists of the following:
+
+1. The sources for HCSGC in the form of a single patch file for
+   OpenJDK (=0001-hcsgc.patch=).
+2. The benchmark programs from our paper (§4):
+   - Our "sanity check" micro benchmark from §4.4;
+   - The JGraphT benchmark from §4.5; and
+   - The DaCapo benchmark suite from which we run Tradebeans and h2 in §4.6.
+   NOTE: Due to copyright restrictions, we cannot include SPECjbb2015 in the artefact.
+3. A virtual machine containing all of the above, including
+   pre-built OpenJDK and HCSGC. As many virtual machine
+   environments do not support =perf= (which we rely on for cache
+   statistics), the full experience of this artefact is likely ony
+   possible with a native installation.
+5. Scripts to automate running the the benchmarks and producing
+   the plots.
+
+Beware that this artefact requires several gigabytes of disk space
+for all dependencies and the build itself.
+
+* Getting Started
+
+This section explains how to install HCSGC alongside an OpenJDK
+baseline. [[Step-by-Step][The next section]] explains how to run the benchmarks. 
+
+Please note that OpenJDK is a large project with many
+dependencies, and that that our HCSGC paper compares 19 different
+configurations which naturally takes some time to run. We explain
+simplifications made to keep time short to kick the tires, and how
+to run the full benchmarks to reproduc the results from the paper
+(possibly modulo =perf=, when running inside a virtual machine).
+
+We provide two different ways to explore this artefact. To
+kick-the-tires, we suggest Option 1 (prebuilt VM). For someone
+working deep in this space or wanting to fully reproduce our
+results, we suggestion Option 2 (manual native install).
+
+- [[option0][Option 1]] is a full VM download. This requires no other setup or
+  installation other than the virtual machine infrastructure, but
+  requires a download of ~8 gigabytes. 
+- [[option2][Option 2]] is a set of manual instructions for how to build and
+  install HCSGC on Debian/Ubuntu.
+
+Notes: Option 1, due to running inside virtual machines, typically
+*cannot* record perf data and may skew the results. 
+
+
+** OPTION 1: Download Pre-Packaged Virtual Machine <<option0>>
+
+
+You can use your favorite virtualisation software. We have tested
+this VM using [[https://www.virtualbox.org/][Virtual Box]].
+
+The Virtual machine can be downloaded from here: [[http://wrigstad.com/paper99.zip]]
+(Since you are reading this file, you are probably already past this step. In that case, 
+you can find the virtual machine as =pldi.ova= inside the above-mentioned zip file.)
+
+After importing the VM, start and login to the VM with the
+following credentials:
+
+#+BEGIN_EXAMPLE
+user: vagrant
+password: vagrant
+#+END_EXAMPLE
+
+See [[Step-by-Step][the next section]] for instructions for how to run the
+benchmarks. 
+
+All interaction with the VM will happen in the terminal. The only
+need for a graphical user interface is to view graphical plots
+from the benchmarking. 
+
+
+
+** OPTION 2: Manual Build on Debian/Ubuntu <<option2>>
+
+Because of the large number of dependencies for OpenJDK, we limit
+ourselves to providing manual instructions for building on
+debian/ubuntu. At the time we implemented HCSGC, ZGC, which we
+build upon, was only available for 64bit Linux. 
+
+Create a directory for the artefact, e.g. =mkdir ~/paper99; cd
+~/paper99=. All commands from now on are assumed to be issued from
+within that directory.
+
+Download the benchmark programs and scripts from
+[[http://wrigstad.com/paper99.zip]] (discard the .ova VM file) and extract into =~/paper99=.
+This will give you the following files and directories:
+
+#+BEGIN_EXAMPLE
+~paper99
+  ├── 0001-hcsgc.patch  <-- HCSGC sources patch
+  ├── benchmarks        <-- our benchmark programs
+  ├── jtreg             <-- OpenJDK build dependency
+  ├── README.html       
+  ├── README.org
+  └── README.txt
+#+END_EXAMPLE
+
+Install the basic building blocks:
+#+BEGIN_EXAMPLE
+sudo apt-get install -y build-essential autoconf git git-lfs
+#+END_EXAMPLE
+
+Utilities
+#+BEGIN_EXAMPLE
+sudo apt-get install -y curl perf-tools-unstable time util-linux
+#+END_EXAMPLE
+(Note that sometimes, the =perf-tools-unstable= package naming may vary.)
+
+Make sure you have the permissions to use =perf=:
+#+BEGIN_EXAMPLE
+sudo sh -c 'echo -1 > /proc/sys/kernel/perf_event_paranoid'
+#+END_EXAMPLE
+
+Install OpenJDK dependencies
+#+BEGIN_EXAMPLE
+sudo apt-get install -y zip unzip libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libfontconfig1-dev libasound2-dev
+#+END_EXAMPLE
+Note that you need a graphical environment to build OpenJDK. If you don't have that, OpenJDK will complain and suggest packages that will remedy the situation.
+
+
+You also need to have a Java installation. If you can install OpenJDK 13 or above, this will simplify things later:
+#+BEGIN_EXAMPLE
+sudo apt-get install -y openjdk-13-jdk-headless
+#+END_EXAMPLE
+*Otherwise, you will still need one to build the benchmark.* Either of the following should work:
+#+BEGIN_EXAMPLE
+sudo apt-get install -y openjdk-11-jdk-headless
+sudo apt-get install -y openjdk-8-jdk-headless
+#+END_EXAMPLE
+
+If you could not install OpenJDK 13 above, you *need* to install modern boot JDK to build:
+#+BEGIN_EXAMPLE
+curl -O https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz 
+tar zxf openjdk-13.0.2_linux-x64_bin.tar.gz
+#+END_EXAMPLE
+(If you can install =openjdk-13-jdk-headless=, you can skip this step and omit the =--with-boot-jdk= flag when running =configure= later.)
+
+Clone baseline JDK from GitHub mirror, and checkout the commit on-top of which HCSGC was authored.
+#+BEGIN_EXAMPLE
+git clone https://github.com/openjdk/jdk.git openjdk
+cd openjdk
+git checkout 67a89143dde6e545adbfc3c79bb89d954307f8bc
+cd ..
+#+END_EXAMPLE
+
+Create a copy of the baseline to build HCSGC.
+#+BEGIN_EXAMPLE
+cp -R openjdk hcsgc
+#+END_EXAMPLE
+
+Configure and finally build OpenJDK.
+#+BEGIN_EXAMPLE
+cd openjdk
+bash configure --with-target-bits=64 --with-native-debug-symbols=none --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
+make CONF=release
+bash configure --enable-debug --with-target-bits=64 --with-native-debug-symbols=internal --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
+make CONF=debug
+cd ..
+#+END_EXAMPLE
+(If you did install =openjdk-13-jdk-headless= using apt, skip the =--with-boot-jdk= flag above.)
+
+Patch OpenJDK with the HCSGC patch. 
+#+BEGIN_EXAMPLE
+cd hcsgc 
+git am < ../0001-hcsgc.patch
+#+END_EXAMPLE
+
+Configure and finally build OpenJDK/HCSGC. 
+#+BEGIN_EXAMPLE
+bash configure --with-target-bits=64 --with-native-debug-symbols=none --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
+make CONF=release
+bash configure --enable-debug --with-target-bits=64 --with-native-debug-symbols=internal --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
+make CONF=debug
+cd ..
+#+END_EXAMPLE
+(If you did install =openjdk-13-jdk-headless= using apt, skip the =--with-boot-jdk= flag above.)
+
+Note that the ~make~ steps will take a long time. 
+
+After building, the baseline =java= and binary is available in
+=~/paper99/openjdk/build/linux-x86_64-server-release/jdk/bin/=,
+and the HCSGC build in
+=~/paper99/hcsgc/build/linux-x86_64-server-release/jdk/bin/=
+(debug builds in =linux-x86_64-server-fastdebug=). However, you do
+not need to use these directly, as scripts for running the
+individual benchmarks are provided. This is detailed in the next
+section.
+
+Finally, to extract data from logs and plot the data, some additional tools are needed:
+#+BEGIN_EXAMPLE
+wget -qO- https://get.haskellstack.org/ | sh
+stack install ghc
+stack install turtle
+
+sudo apt-get install -y ruby octave octave-statistics zsh
+#+END_EXAMPLE
+
+
+#+begin_quote
+Finally, *unless* you placed the ~paper99~ directory directly
+under =~=, you must edit =hcsgc_engine.hs= and =hcsgc_engine_single_core.hs= and
+change the paths to the newly built OpenJDK and HCSGC binaries (lines 43, 44, 46, and 47 in both files). 
+*If you skip this step, the benchmark scripts will not run!*
+#+end_quote
+
+* Step-by-Step
+
+This section contains instructions for running the benchmarks from
+the paper (again, excluding SPECjbb2015 for copyright reasons).
+
+A text describing how to evaluate the results is found in the file
+=result.html= in the =benchmarks= directory, and which is opened
+automatically when the benchmarks finish (inside the VM) and
+contains all the plots with accompanying text (mostly adapted from
+the paper).
+
+
+** Running the Simplified Benchmarks
+
+Due to the large number of configurations, and the large number of
+runs needed for statistical significance, running the
+benchmarks is *very time consuming*, and is expected to take at
+least 24 hours on a modern laptop. 
+
+To this end, we provide a simplified benchmark setting where we
+only run the synthetic benchmark for a single run (for each
+19 configurations) that is intended to prove that HCSGC is indeed
+built correctly, and that its tuning knobs do work (because
+different configurations do see different results). 
+
+Based on our experience, we estimate the following run-times for
+the benchmarks:
+
+| Benchmark        | Run-time |
+|------------------+----------|
+| synthetic        | 5h       |
+| synthetic phases | 15h      |
+| synthetic cold   | 7h       |
+| cc-uk            | 7h       |
+| cc-enwiki        | 7h       |
+| mc-uk            | 40h      |
+| mc-enwiki        | 32h      |
+| tradebeans       | 98h      |
+| h2               | 158h     |
+
+*** Kick-the-Tires Benchmark Fast (~15 minutes)
+
+| Benchmark | Figure in Paper | Runs         | Configurations |
+|-----------+-----------------+--------------+----------------|
+| synthetic | Fig. 4          | 1 (see note) |             19 |
+
+*Note:* To avoid changing the scripts, we copy the resulting logs
+31 times to fake the 31 runs that we ran in the paper. Naturally
+this setting cannot be used to obtain any results with any
+statistical significance, and any jitter on your machine could
+skew the results.
+
+To run this benchmark, which should take 15 minutes (in =~/benchmarks= on VM or =~/paper99/benchmarks= in the manual install):
+
+#+BEGIN_EXAMPLE
+zsh
+make test
+#+END_EXAMPLE
+
+This compiles the synthetic benchmark, runs the parts of it
+relevant for Figure 4, produces the corresponding plots and opens
+a browser to show them together with accompanying text.
+
+*** Kick-the-Tires Benchmark Slow (optional -- note: ~1 day)
+
+| Benchmark        | Figure in Paper | Runs | Configurations |
+|------------------+-----------------+------+----------------|
+| synthetic        | Fig. 4          |   31 |             19 |
+| synthetic phases | Fig. 5          |   31 |             19 |
+| synthetic cold   | Fig. 6          |   31 |             19 |
+
+
+To run the synthetic benchmarks for Figure 4 with the full 31
+runs from the paper (in =~/benchmarks= on VM or =~/paper99/benchmarks= in the manual install):
+
+#+BEGIN_EXAMPLE
+zsh
+make test_full
+#+END_EXAMPLE
+
+*** Full Benchmark Slow (Weeks(!))
+
+| Benchmark            | Figure in Paper |                 Runs | Configurations |
+|----------------------+-----------------+----------------------+----------------|
+| synthetic            | Fig. 4          |                   31 |             19 |
+| synthetic phases     | Fig. 5          |                   31 |             19 |
+| synthetic cold       | Fig. 6          |                   31 |             19 |
+|----------------------+-----------------+----------------------+----------------|
+| jgrapht suite        | Fig. 7-10       |                   31 |             19 |
+|----------------------+-----------------+----------------------+----------------|
+| dacapo h2/tradebeans | Fig. 11-12      | 5 (25 iters per run) |             19 |
+
+
+
+
+Finally, to run the *full* benchmarks from the paper (in =~/benchmarks= on VM or =~/paper99/benchmarks= in the manual install):
+
+#+BEGIN_EXAMPLE
+zsh
+make bench
+#+END_EXAMPLE
+
+This compiles all benchmarks (Dacapo is provided as a jar file),
+runs all the benchmarks, produces the plots and finally opens a
+browser to show the results together with accompanying text.
+
+The plots are are placed in
+=data/images/evaluation/= under the =benchmark= directory. The file
+=results.html= in the =benchmark= directory shows all the plots in a single HTML
+file together with pointers to the paper and a discussion of their
+interpretation. The directory
+=submitted_evaluation= contains the
+plots from the paper for comparison and all these figures are shown in =results.html=.
+
+*** Exporting the Results for Viewing Outside the VM
+
+You can create a zip file, =results.zip=, with all the plots and
+=results.html= like so:
+
+#+BEGIN_EXAMPLE
+make zip
+#+END_EXAMPLE
+
+And use whatever means to export the zip file. The simplest way is
+probably by using =scp= to copy =results.zip= to some other machine. 
+
+
+** How to Evaluate this Artefact
+
+This is described in [[file:benchmarks/results.html][results.html]] along with the figures produced
+by running the benchmark scripts using the makefile as detailed
+above.
+
+
+** Viewing the Results
+
+The file [[file:benchmarks/results.html][results.html]] is opened by the main makefile after
+benchmarking. Should you wish to open it again without rerunning
+the benchmarks:
+
+#+BEGIN_EXAMPLE
+make view
+#+END_EXAMPLE
+
+
+
