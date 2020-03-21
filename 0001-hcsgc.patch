@@ -1,4 +1,4 @@
-From a8ff5c3e171e72725cef9d73591b878cd802efc0 Mon Sep 17 00:00:00 2001
+From 95f4b06616dba631ed86317f1b3117f184f30398 Mon Sep 17 00:00:00 2001
 From: Albert Netymk <albertnetymk@gmail.com>
 Date: Tue, 27 Aug 2019 23:22:07 +0200
 Subject: [PATCH] hcsgc
@@ -16,7 +16,7 @@ Subject: [PATCH] hcsgc
  src/hotspot/share/gc/z/zLiveMap.hpp           |  4 +-
  src/hotspot/share/gc/z/zLiveMap.inline.hpp    |  5 +-
  src/hotspot/share/gc/z/zMark.cpp              |  3 +-
- src/hotspot/share/gc/z/zObjectAllocator.cpp   | 83 ++++++++++++++++-
+ src/hotspot/share/gc/z/zObjectAllocator.cpp   | 66 +++++++++++++-
  src/hotspot/share/gc/z/zObjectAllocator.hpp   | 10 +++
  .../share/gc/z/zOopClosures.inline.hpp        |  6 +-
  src/hotspot/share/gc/z/zPage.cpp              |  9 +-
@@ -26,7 +26,7 @@ Subject: [PATCH] hcsgc
  src/hotspot/share/gc/z/zRelocate.hpp          |  4 +-
  .../share/gc/z/zRelocationSetSelector.cpp     | 68 ++++++++++++--
  .../share/gc/z/zRelocationSetSelector.hpp     |  4 +
- 22 files changed, 460 insertions(+), 54 deletions(-)
+ 22 files changed, 443 insertions(+), 54 deletions(-)
 
 diff --git a/src/hotspot/share/gc/shared/gc_globals.hpp b/src/hotspot/share/gc/shared/gc_globals.hpp
 index 39d2d1e990..0eed768834 100644
@@ -524,7 +524,7 @@ index 5dd3f6241d..eced77ba43 100644
  
    virtual void do_oop(narrowOop* p) {
 diff --git a/src/hotspot/share/gc/z/zObjectAllocator.cpp b/src/hotspot/share/gc/z/zObjectAllocator.cpp
-index abdbbe1714..533b1990c8 100644
+index abdbbe1714..1e4023c21a 100644
 --- a/src/hotspot/share/gc/z/zObjectAllocator.cpp
 +++ b/src/hotspot/share/gc/z/zObjectAllocator.cpp
 @@ -46,7 +46,9 @@ ZObjectAllocator::ZObjectAllocator() :
@@ -579,29 +579,19 @@ index abdbbe1714..533b1990c8 100644
  uintptr_t ZObjectAllocator::alloc_small_object(size_t size, ZAllocationFlags flags) {
    if (flags.worker_thread()) {
      return alloc_small_object_from_worker(size, flags);
-@@ -174,6 +203,21 @@ uintptr_t ZObjectAllocator::alloc_small_object(size_t size, ZAllocationFlags fla
+@@ -174,6 +203,11 @@ uintptr_t ZObjectAllocator::alloc_small_object(size_t size, ZAllocationFlags fla
    }
  }
  
 +uintptr_t ZObjectAllocator::alloc_object_cold(size_t size, ZAllocationFlags flags) {
 +  assert(size <= ZObjectSizeLimitSmall, "");
 +  return alloc_small_object_cold(size, flags);
-+  // if (size <= ZObjectSizeLimitSmall) {
-+  //   // Small
-+  //   return alloc_small_object_cold(size, flags);
-+  // } else if (size <= ZObjectSizeLimitMedium) {
-+  //   // Medium
-+  //   return alloc_medium_object(size, flags);
-+  // } else {
-+  //   // Large
-+  //   return alloc_large_object(size, flags);
-+  // }
 +}
 +
  uintptr_t ZObjectAllocator::alloc_object(size_t size, ZAllocationFlags flags) {
    if (size <= ZObjectSizeLimitSmall) {
      // Small
-@@ -196,6 +240,21 @@ uintptr_t ZObjectAllocator::alloc_object(size_t size) {
+@@ -196,6 +230,21 @@ uintptr_t ZObjectAllocator::alloc_object(size_t size) {
    return alloc_object(size, flags);
  }
  
@@ -623,7 +613,7 @@ index abdbbe1714..533b1990c8 100644
  uintptr_t ZObjectAllocator::alloc_object_for_relocation(size_t size) {
    assert(ZThread::is_java() || ZThread::is_vm() || ZThread::is_worker() || ZThread::is_runtime_worker(),
           "Unknown thread");
-@@ -233,6 +292,16 @@ bool ZObjectAllocator::undo_alloc_small_object_from_nonworker(ZPage* page, uintp
+@@ -233,6 +282,16 @@ bool ZObjectAllocator::undo_alloc_small_object_from_nonworker(ZPage* page, uintp
    return page->undo_alloc_object_atomic(addr, size);
  }
  
@@ -640,25 +630,18 @@ index abdbbe1714..533b1990c8 100644
  bool ZObjectAllocator::undo_alloc_small_object_from_worker(ZPage* page, uintptr_t addr, size_t size) {
    assert(page->type() == ZPageTypeSmall, "Invalid page type");
    assert(page == _worker_small_page.get(), "Invalid page");
-@@ -263,6 +332,17 @@ bool ZObjectAllocator::undo_alloc_object(ZPage* page, uintptr_t addr, size_t siz
+@@ -263,6 +322,10 @@ bool ZObjectAllocator::undo_alloc_object(ZPage* page, uintptr_t addr, size_t siz
    }
  }
  
 +void ZObjectAllocator::undo_alloc_object_for_relocation_cold(ZPage* page, uintptr_t addr, size_t size) {
 +  undo_alloc_small_object_from_worker_cold(page, addr, size);
-+  // if (size <= ZObjectSizeLimitSmall) {
-+  //   assert(page->type() == ZPageTypeSmall, "");
-+  //   auto success = undo_alloc_small_object_from_worker_cold(page, addr, size);
-+  //   assert(success, "");
-+  //   return;
-+  // }
-+  // undo_alloc_object_for_relocation(page, addr, size);
 +}
 +
  void ZObjectAllocator::undo_alloc_object_for_relocation(ZPage* page, uintptr_t addr, size_t size) {
    if (undo_alloc_object(page, addr, size)) {
      ZStatInc(ZCounterUndoObjectAllocationSucceeded);
-@@ -312,4 +392,5 @@ void ZObjectAllocator::retire_pages() {
+@@ -312,4 +375,5 @@ void ZObjectAllocator::retire_pages() {
    _shared_medium_page.set(NULL);
    _shared_small_page.set_all(NULL);
    _worker_small_page.set_all(NULL);
@@ -1160,5 +1143,5 @@ index 9ef3cec3c3..456ed15917 100644
  public:
    ZRelocationSetSelector();
 -- 
-2.20.1
+2.25.1
 
