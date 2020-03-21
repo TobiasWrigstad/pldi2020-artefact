@@ -33,7 +33,7 @@ to reach a steady state. To save artefact reviewers' time, the we
 provide a simple test script that generates Figure 4 from
 the paper with a single run. We also provide
 a medium-weight testing option to generate the full Figure 4-6 with
-31 runs (same as in the paper). 
+31 runs (same as in the paper).
 
 The full benchmarks[fn::Except for SPECJbb2015 which cannot be
 included due to copyright restrictions.] are also provided and can
@@ -66,13 +66,13 @@ for all dependencies and the build itself.
 * Getting Started
 
 This section explains how to install HCSGC alongside an OpenJDK
-baseline. [[Step-by-Step][The next section]] explains how to run the benchmarks. 
+baseline. [[Step-by-Step][The next section]] explains how to run the benchmarks.
 
 Please note that OpenJDK is a large project with many
 dependencies, and that that our HCSGC paper compares 19 different
 configurations which naturally takes some time to run. We explain
 simplifications made to keep time short to kick the tires, and how
-to run the full benchmarks to reproduc the results from the paper
+to run the full benchmarks to reproduce the results from the paper
 (possibly modulo =perf=, when running inside a virtual machine).
 
 We provide two different ways to explore this artefact. To
@@ -82,12 +82,12 @@ results, we suggestion Option 2 (manual native install).
 
 - [[option0][Option 1]] is a full VM download. This requires no other setup or
   installation other than the virtual machine infrastructure, but
-  requires a download of ~8 gigabytes. 
+  requires a download of ~8 gigabytes.
 - [[option2][Option 2]] is a set of manual instructions for how to build and
   install HCSGC on Debian/Ubuntu.
 
 Notes: Option 1, due to running inside virtual machines, typically
-*cannot* record perf data and may skew the results. 
+*cannot* record perf data and may skew the results.
 
 
 ** OPTION 1: Download Pre-Packaged Virtual Machine <<option0>>
@@ -97,7 +97,7 @@ You can use your favorite virtualisation software. We have tested
 this VM using [[https://www.virtualbox.org/][Virtual Box]].
 
 The Virtual machine can be downloaded from here: [[http://wrigstad.com/paper99.zip]]
-(Since you are reading this file, you are probably already past this step. In that case, 
+(Since you are reading this file, you are probably already past this step. In that case,
 you can find the virtual machine as =pldi.ova= inside the above-mentioned zip file.)
 
 After importing the VM, start and login to the VM with the
@@ -109,11 +109,11 @@ password: vagrant
 #+END_EXAMPLE
 
 See [[Step-by-Step][the next section]] for instructions for how to run the
-benchmarks. 
+benchmarks.
 
 All interaction with the VM will happen in the terminal. The only
 need for a graphical user interface is to view graphical plots
-from the benchmarking. 
+from the benchmarking.
 
 
 
@@ -122,7 +122,7 @@ from the benchmarking.
 Because of the large number of dependencies for OpenJDK, we limit
 ourselves to providing manual instructions for building on
 debian/ubuntu. At the time we implemented HCSGC, ZGC, which we
-build upon, was only available for 64bit Linux. 
+build upon, was only available for 64bit Linux.
 
 Create a directory for the artefact, e.g. =mkdir ~/paper99; cd
 ~/paper99=. All commands from now on are assumed to be issued from
@@ -137,7 +137,7 @@ This will give you the following files and directories:
   ├── 0001-hcsgc.patch  <-- HCSGC sources patch
   ├── benchmarks        <-- our benchmark programs
   ├── jtreg             <-- OpenJDK build dependency
-  ├── README.html       
+  ├── README.html
   ├── README.org
   └── README.txt
 #+END_EXAMPLE
@@ -177,7 +177,7 @@ sudo apt-get install -y openjdk-8-jdk-headless
 
 If you could not install OpenJDK 13 above, you *need* to install modern boot JDK to build:
 #+BEGIN_EXAMPLE
-curl -O https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz 
+curl -O https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz
 tar zxf openjdk-13.0.2_linux-x64_bin.tar.gz
 #+END_EXAMPLE
 (If you can install =openjdk-13-jdk-headless=, you can skip this step and omit the =--with-boot-jdk= flag when running =configure= later.)
@@ -206,13 +206,13 @@ cd ..
 #+END_EXAMPLE
 (If you did install =openjdk-13-jdk-headless= using apt, skip the =--with-boot-jdk= flag above.)
 
-Patch OpenJDK with the HCSGC patch. 
+Patch OpenJDK with the HCSGC patch.
 #+BEGIN_EXAMPLE
-cd hcsgc 
+cd hcsgc
 git am < ../0001-hcsgc.patch
 #+END_EXAMPLE
 
-Configure and finally build OpenJDK/HCSGC. 
+Configure and finally build OpenJDK/HCSGC.
 #+BEGIN_EXAMPLE
 bash configure --with-target-bits=64 --with-native-debug-symbols=none --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
 make CONF=release
@@ -222,7 +222,12 @@ cd ..
 #+END_EXAMPLE
 (If you did install =openjdk-13-jdk-headless= using apt, skip the =--with-boot-jdk= flag above.)
 
-Note that the ~make~ steps will take a long time. 
+Note that the ~make~ steps will take a long time. Using ~make -j
+<#jobs>~ is not needed, because the ~bash configure ...~ step has
+already picked up the number of cores availalbe on the machine so
+that ~make~ alone will do a parallel build. More documentation on
+this can be viewed at the office OpenJDK
+[[https://github.com/openjdk/jdk/blob/master/doc/building.md][repo]].
 
 After building, the baseline =java= and binary is available in
 =~/paper99/openjdk/build/linux-x86_64-server-release/jdk/bin/=,
@@ -245,9 +250,13 @@ sudo apt-get install -y ruby octave octave-statistics zsh
 
 #+begin_quote
 Finally, *unless* you placed the ~paper99~ directory directly
-under =~=, you must edit =hcsgc_engine.hs= and =hcsgc_engine_single_core.hs= and
-change the paths to the newly built OpenJDK and HCSGC binaries (lines 43, 44, 46, and 47 in both files). 
-*If you skip this step, the benchmark scripts will not run!*
+under =~=, you must edit certain files to reflect the location of
+this project. In =benchmark/Makefile=, change the first line to
+indicate project root. In =benchmark/programs/hcsgc_engine.hs= and
+=benchmark/programs/hcsgc_engine_single_core.hs=, change the paths
+to the newly built OpenJDK and HCSGC binaries (lines 43, 44, 46,
+and 47 in both files). *If you skip this step, the benchmark
+scripts will not run!*
 #+end_quote
 
 * Step-by-Step
@@ -267,13 +276,13 @@ the paper).
 Due to the large number of configurations, and the large number of
 runs needed for statistical significance, running the
 benchmarks is *very time consuming*, and is expected to take at
-least 24 hours on a modern laptop. 
+least 24 hours on a modern laptop.
 
 To this end, we provide a simplified benchmark setting where we
 only run the synthetic benchmark for a single run (for each
 19 configurations) that is intended to prove that HCSGC is indeed
 built correctly, and that its tuning knobs do work (because
-different configurations do see different results). 
+different configurations do see different results).
 
 Based on our experience, we estimate the following run-times for
 the benchmarks:
@@ -352,7 +361,7 @@ zsh
 make bench
 #+END_EXAMPLE
 
-This compiles all benchmarks (Dacapo is provided as a jar file),
+This compiles all benchmarks (DaCapo is provided as a jar file),
 runs all the benchmarks, produces the plots and finally opens a
 browser to show the results together with accompanying text.
 
@@ -374,7 +383,7 @@ make zip
 #+END_EXAMPLE
 
 And use whatever means to export the zip file. The simplest way is
-probably by using =scp= to copy =results.zip= to some other machine. 
+probably by using =scp= to copy =results.zip= to some other machine.
 
 
 ** How to Evaluate this Artefact
@@ -393,6 +402,5 @@ the benchmarks:
 #+BEGIN_EXAMPLE
 make view
 #+END_EXAMPLE
-
 
 
