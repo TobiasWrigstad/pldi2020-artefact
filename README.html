@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2020-02-29 lör 02:42 -->
+<!-- 2020-03-23 mån 09:28 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PAPER 99: Improving Program Locality in the GC using Hotness</title>
@@ -201,7 +201,7 @@
 @licstart  The following is the entire license notice for the
 JavaScript code in this tag.
 
-Copyright (C) 2012-2019 Free Software Foundation, Inc.
+Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 The JavaScript code in this tag is free software: you can
 redistribute it and/or modify it under the terms of the GNU
@@ -250,33 +250,33 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org91c2762">1. Overview</a></li>
-<li><a href="#orgfbdb7c4">2. Getting Started</a>
+<li><a href="#orga805f71">1. Overview</a></li>
+<li><a href="#org5ac9e4e">2. Getting Started</a>
 <ul>
-<li><a href="#orgcb76ff6">2.1. OPTION 1: Download Pre-Packaged Virtual Machine </a></li>
-<li><a href="#org86b1e22">2.2. OPTION 2: Manual Build on Debian/Ubuntu </a></li>
+<li><a href="#orgde24004">2.1. OPTION 1: Download Pre-Packaged Virtual Machine </a></li>
+<li><a href="#org62d0a9b">2.2. OPTION 2: Manual Build on Debian/Ubuntu </a></li>
 </ul>
 </li>
-<li><a href="#org5f0cd6f">3. Step-by-Step</a>
+<li><a href="#orgf19d976">3. Step-by-Step</a>
 <ul>
-<li><a href="#org89a6f81">3.1. Running the Simplified Benchmarks</a>
+<li><a href="#org19b7590">3.1. Running the Simplified Benchmarks</a>
 <ul>
-<li><a href="#org81c17ff">3.1.1. Kick-the-Tires Benchmark Fast (~15 minutes)</a></li>
-<li><a href="#org095dc5f">3.1.2. Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</a></li>
-<li><a href="#org1c716bf">3.1.3. Full Benchmark Slow (Weeks(!))</a></li>
-<li><a href="#org33e9244">3.1.4. Exporting the Results for Viewing Outside the VM</a></li>
+<li><a href="#orgb433e70">3.1.1. Kick-the-Tires Benchmark Fast (~15 minutes)</a></li>
+<li><a href="#org58892a1">3.1.2. Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</a></li>
+<li><a href="#org4d6bf78">3.1.3. Full Benchmark Slow (Weeks(!))</a></li>
+<li><a href="#org6e631ee">3.1.4. Exporting the Results for Viewing Outside the VM</a></li>
 </ul>
 </li>
-<li><a href="#org97d0a9e">3.2. How to Evaluate this Artefact</a></li>
-<li><a href="#orgb458a54">3.3. Viewing the Results</a></li>
+<li><a href="#org0226274">3.2. How to Evaluate this Artefact</a></li>
+<li><a href="#org9907676">3.3. Viewing the Results</a></li>
 </ul>
 </li>
 </ul>
 </div>
 </div>
 
-<div id="outline-container-org91c2762" class="outline-2">
-<h2 id="org91c2762"><span class="section-number-2">1</span> Overview</h2>
+<div id="outline-container-orga805f71" class="outline-2">
+<h2 id="orga805f71"><span class="section-number-2">1</span> Overview</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 Paper 99 presents HCSGC, built on-top of the ZGC collector in
@@ -310,7 +310,7 @@ to reach a steady state. To save artefact reviewers' time, the we
 provide a simple test script that generates Figure 4 from
 the paper with a single run. We also provide
 a medium-weight testing option to generate the full Figure 4-6 with
-31 runs (same as in the paper). 
+31 runs (same as in the paper).
 </p>
 
 <p>
@@ -358,12 +358,12 @@ for all dependencies and the build itself.
 </div>
 </div>
 
-<div id="outline-container-orgfbdb7c4" class="outline-2">
-<h2 id="orgfbdb7c4"><span class="section-number-2">2</span> Getting Started</h2>
+<div id="outline-container-org5ac9e4e" class="outline-2">
+<h2 id="org5ac9e4e"><span class="section-number-2">2</span> Getting Started</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 This section explains how to install HCSGC alongside an OpenJDK
-baseline. <a href="#org5f0cd6f">The next section</a> explains how to run the benchmarks. 
+baseline. <a href="#orgf19d976">The next section</a> explains how to run the benchmarks.
 </p>
 
 <p>
@@ -371,7 +371,7 @@ Please note that OpenJDK is a large project with many
 dependencies, and that that our HCSGC paper compares 19 different
 configurations which naturally takes some time to run. We explain
 simplifications made to keep time short to kick the tires, and how
-to run the full benchmarks to reproduc the results from the paper
+to run the full benchmarks to reproduce the results from the paper
 (possibly modulo <code>perf</code>, when running inside a virtual machine).
 </p>
 
@@ -383,22 +383,22 @@ results, we suggestion Option 2 (manual native install).
 </p>
 
 <ul class="org-ul">
-<li><a href="#org548968c">Option 1</a> is a full VM download. This requires no other setup or
+<li><a href="#orgf2ff1de">Option 1</a> is a full VM download. This requires no other setup or
 installation other than the virtual machine infrastructure, but
 requires a download of ~8 gigabytes.</li>
-<li><a href="#org16417d7">Option 2</a> is a set of manual instructions for how to build and
+<li><a href="#orge3b4bca">Option 2</a> is a set of manual instructions for how to build and
 install HCSGC on Debian/Ubuntu.</li>
 </ul>
 
 <p>
 Notes: Option 1, due to running inside virtual machines, typically
-<b>cannot</b> record perf data and may skew the results. 
+<b>cannot</b> record perf data and may skew the results.
 </p>
 </div>
 
 
-<div id="outline-container-orgcb76ff6" class="outline-3">
-<h3 id="orgcb76ff6"><span class="section-number-3">2.1</span> OPTION 1: Download Pre-Packaged Virtual Machine <a id="org548968c"></a></h3>
+<div id="outline-container-orgde24004" class="outline-3">
+<h3 id="orgde24004"><span class="section-number-3">2.1</span> OPTION 1: Download Pre-Packaged Virtual Machine <a id="orgf2ff1de"></a></h3>
 <div class="outline-text-3" id="text-2-1">
 <p>
 You can use your favorite virtualisation software. We have tested
@@ -407,7 +407,7 @@ this VM using <a href="https://www.virtualbox.org/">Virtual Box</a>.
 
 <p>
 The Virtual machine can be downloaded from here: <a href="http://wrigstad.com/paper99.zip">http://wrigstad.com/paper99.zip</a>
-(Since you are reading this file, you are probably already past this step. In that case, 
+(Since you are reading this file, you are probably already past this step. In that case,
 you can find the virtual machine as <code>pldi.ova</code> inside the above-mentioned zip file.)
 </p>
 
@@ -422,28 +422,28 @@ password: vagrant
 </pre>
 
 <p>
-See <a href="#org5f0cd6f">the next section</a> for instructions for how to run the
-benchmarks. 
+See <a href="#orgf19d976">the next section</a> for instructions for how to run the
+benchmarks.
 </p>
 
 <p>
 All interaction with the VM will happen in the terminal. The only
 need for a graphical user interface is to view graphical plots
-from the benchmarking. 
+from the benchmarking.
 </p>
 </div>
 </div>
 
 
 
-<div id="outline-container-org86b1e22" class="outline-3">
-<h3 id="org86b1e22"><span class="section-number-3">2.2</span> OPTION 2: Manual Build on Debian/Ubuntu <a id="org16417d7"></a></h3>
+<div id="outline-container-org62d0a9b" class="outline-3">
+<h3 id="org62d0a9b"><span class="section-number-3">2.2</span> OPTION 2: Manual Build on Debian/Ubuntu <a id="orge3b4bca"></a></h3>
 <div class="outline-text-3" id="text-2-2">
 <p>
 Because of the large number of dependencies for OpenJDK, we limit
 ourselves to providing manual instructions for building on
 debian/ubuntu. At the time we implemented HCSGC, ZGC, which we
-build upon, was only available for 64bit Linux. 
+build upon, was only available for 64bit Linux.
 </p>
 
 <p>
@@ -463,7 +463,7 @@ This will give you the following files and directories:
   ├── 0001-hcsgc.patch  &lt;-- HCSGC sources patch
   ├── benchmarks        &lt;-- our benchmark programs
   ├── jtreg             &lt;-- OpenJDK build dependency
-  ├── README.html       
+  ├── README.html
   ├── README.org
   └── README.txt
 </pre>
@@ -521,7 +521,7 @@ sudo apt-get install -y openjdk-8-jdk-headless
 If you could not install OpenJDK 13 above, you <b>need</b> to install modern boot JDK to build:
 </p>
 <pre class="example">
-curl -O https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz 
+curl -O https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz
 tar zxf openjdk-13.0.2_linux-x64_bin.tar.gz
 </pre>
 <p>
@@ -561,15 +561,15 @@ cd ..
 </p>
 
 <p>
-Patch OpenJDK with the HCSGC patch. 
+Patch OpenJDK with the HCSGC patch.
 </p>
 <pre class="example">
-cd hcsgc 
+cd hcsgc
 git am &lt; ../0001-hcsgc.patch
 </pre>
 
 <p>
-Configure and finally build OpenJDK/HCSGC. 
+Configure and finally build OpenJDK/HCSGC.
 </p>
 <pre class="example">
 bash configure --with-target-bits=64 --with-native-debug-symbols=none --with-jtreg=../jtreg --with-boot-jdk=../jdk-13.0.2 --disable-warnings-as-errors --with-extra-cflags='-Wno-nonnull-compare -Wno-format -Wno-stringop-truncation ' --with-extra-cxxflags='-std=gnu++11'
@@ -583,7 +583,12 @@ cd ..
 </p>
 
 <p>
-Note that the <code>make</code> steps will take a long time. 
+Note that the <code>make</code> steps will take a long time. Using <code>make -j
+&lt;#jobs&gt;</code> is not needed, because the <code>bash configure ...</code> step has
+already picked up the number of cores availalbe on the machine so
+that <code>make</code> alone will do a parallel build. More documentation on
+this can be viewed at the office OpenJDK
+<a href="https://github.com/openjdk/jdk/blob/master/doc/building.md">repo</a>.
 </p>
 
 <p>
@@ -612,17 +617,21 @@ sudo apt-get install -y ruby octave octave-statistics zsh
 <blockquote>
 <p>
 Finally, <b>unless</b> you placed the <code>paper99</code> directory directly
-under <code>~</code>, you must edit <code>hcsgc_engine.hs</code> and <code>hcsgc_engine_single_core.hs</code> and
-change the paths to the newly built OpenJDK and HCSGC binaries (lines 43, 44, 46, and 47 in both files). 
-<b>If you skip this step, the benchmark scripts will not run!</b>
+under <code>~</code>, you must edit certain files to reflect the location of
+this project. In <code>benchmark/Makefile</code>, change the first line to
+indicate project root. In <code>benchmark/programs/hcsgc_engine.hs</code> and
+<code>benchmark/programs/hcsgc_engine_single_core.hs</code>, change the paths
+to the newly built OpenJDK and HCSGC binaries (lines 43, 44, 46,
+and 47 in both files). <b>If you skip this step, the benchmark
+scripts will not run!</b>
 </p>
 </blockquote>
 </div>
 </div>
 </div>
 
-<div id="outline-container-org5f0cd6f" class="outline-2">
-<h2 id="org5f0cd6f"><span class="section-number-2">3</span> Step-by-Step</h2>
+<div id="outline-container-orgf19d976" class="outline-2">
+<h2 id="orgf19d976"><span class="section-number-2">3</span> Step-by-Step</h2>
 <div class="outline-text-2" id="text-3">
 <p>
 This section contains instructions for running the benchmarks from
@@ -639,14 +648,14 @@ the paper).
 </div>
 
 
-<div id="outline-container-org89a6f81" class="outline-3">
-<h3 id="org89a6f81"><span class="section-number-3">3.1</span> Running the Simplified Benchmarks</h3>
+<div id="outline-container-org19b7590" class="outline-3">
+<h3 id="org19b7590"><span class="section-number-3">3.1</span> Running the Simplified Benchmarks</h3>
 <div class="outline-text-3" id="text-3-1">
 <p>
 Due to the large number of configurations, and the large number of
 runs needed for statistical significance, running the
 benchmarks is <b>very time consuming</b>, and is expected to take at
-least 24 hours on a modern laptop. 
+least 24 hours on a modern laptop.
 </p>
 
 <p>
@@ -654,7 +663,7 @@ To this end, we provide a simplified benchmark setting where we
 only run the synthetic benchmark for a single run (for each
 19 configurations) that is intended to prove that HCSGC is indeed
 built correctly, and that its tuning knobs do work (because
-different configurations do see different results). 
+different configurations do see different results).
 </p>
 
 <p>
@@ -725,8 +734,8 @@ the benchmarks:
 </table>
 </div>
 
-<div id="outline-container-org81c17ff" class="outline-4">
-<h4 id="org81c17ff"><span class="section-number-4">3.1.1</span> Kick-the-Tires Benchmark Fast (~15 minutes)</h4>
+<div id="outline-container-orgb433e70" class="outline-4">
+<h4 id="orgb433e70"><span class="section-number-4">3.1.1</span> Kick-the-Tires Benchmark Fast (~15 minutes)</h4>
 <div class="outline-text-4" id="text-3-1-1">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
@@ -783,8 +792,8 @@ a browser to show them together with accompanying text.
 </div>
 </div>
 
-<div id="outline-container-org095dc5f" class="outline-4">
-<h4 id="org095dc5f"><span class="section-number-4">3.1.2</span> Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</h4>
+<div id="outline-container-org58892a1" class="outline-4">
+<h4 id="org58892a1"><span class="section-number-4">3.1.2</span> Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</h4>
 <div class="outline-text-4" id="text-3-1-2">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
@@ -843,8 +852,8 @@ make test_full
 </div>
 </div>
 
-<div id="outline-container-org1c716bf" class="outline-4">
-<h4 id="org1c716bf"><span class="section-number-4">3.1.3</span> Full Benchmark Slow (Weeks(!))</h4>
+<div id="outline-container-org4d6bf78" class="outline-4">
+<h4 id="org4d6bf78"><span class="section-number-4">3.1.3</span> Full Benchmark Slow (Weeks(!))</h4>
 <div class="outline-text-4" id="text-3-1-3">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
@@ -919,7 +928,7 @@ make bench
 </pre>
 
 <p>
-This compiles all benchmarks (Dacapo is provided as a jar file),
+This compiles all benchmarks (DaCapo is provided as a jar file),
 runs all the benchmarks, produces the plots and finally opens a
 browser to show the results together with accompanying text.
 </p>
@@ -936,8 +945,8 @@ plots from the paper for comparison and all these figures are shown in <code>res
 </div>
 </div>
 
-<div id="outline-container-org33e9244" class="outline-4">
-<h4 id="org33e9244"><span class="section-number-4">3.1.4</span> Exporting the Results for Viewing Outside the VM</h4>
+<div id="outline-container-org6e631ee" class="outline-4">
+<h4 id="org6e631ee"><span class="section-number-4">3.1.4</span> Exporting the Results for Viewing Outside the VM</h4>
 <div class="outline-text-4" id="text-3-1-4">
 <p>
 You can create a zip file, <code>results.zip</code>, with all the plots and
@@ -950,15 +959,15 @@ make zip
 
 <p>
 And use whatever means to export the zip file. The simplest way is
-probably by using <code>scp</code> to copy <code>results.zip</code> to some other machine. 
+probably by using <code>scp</code> to copy <code>results.zip</code> to some other machine.
 </p>
 </div>
 </div>
 </div>
 
 
-<div id="outline-container-org97d0a9e" class="outline-3">
-<h3 id="org97d0a9e"><span class="section-number-3">3.2</span> How to Evaluate this Artefact</h3>
+<div id="outline-container-org0226274" class="outline-3">
+<h3 id="org0226274"><span class="section-number-3">3.2</span> How to Evaluate this Artefact</h3>
 <div class="outline-text-3" id="text-3-2">
 <p>
 This is described in <a href="benchmarks/results.html">results.html</a> along with the figures produced
@@ -969,8 +978,8 @@ above.
 </div>
 
 
-<div id="outline-container-orgb458a54" class="outline-3">
-<h3 id="orgb458a54"><span class="section-number-3">3.3</span> Viewing the Results</h3>
+<div id="outline-container-org9907676" class="outline-3">
+<h3 id="org9907676"><span class="section-number-3">3.3</span> Viewing the Results</h3>
 <div class="outline-text-3" id="text-3-3">
 <p>
 The file <a href="benchmarks/results.html">results.html</a> is opened by the main makefile after
@@ -996,7 +1005,7 @@ included due to copyright restrictions.</p></div></div>
 </div></div>
 <div id="postamble" class="status">
 <p class="author">Author: Tobias Wrigstad</p>
-<p class="date">Created: 2020-02-29 lör 02:42</p>
+<p class="date">Created: 2020-03-23 mån 09:28</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
