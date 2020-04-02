@@ -15,7 +15,8 @@ end
 
 image_path = sprintf("%s/../images/evaluation", fileparts(mfilename('fullpath')));
 loop_index_max = 10
-set (0, "defaultaxesfontname", "Helvetica")
+set (0, "defaultaxesfontname", "FreeHelvetion")
+set (0, "defaulttextfontname", "FreeHelvetion")
 for bm_index = 1:rows(bms)
     bm = bms{bm_index}
 
