@@ -18,8 +18,8 @@ for i = 0:18
 end
 
 image_path = sprintf("%s/images/evaluation", fileparts(mfilename('fullpath')));
-set (0, "defaultaxesfontname", "FreeHelvetion")
-set (0, "defaulttextfontname", "FreeHelvetion")
+set (0, "defaultaxesfontname", "Free Helvetian")
+set (0, "defaulttextfontname", "Free Helvetian")
 for bm_index = 1:rows(bms)
     bm = bms{bm_index}
 
