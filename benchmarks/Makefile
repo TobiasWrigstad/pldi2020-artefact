@@ -37,17 +37,17 @@ bench:
 	mv ${project_root}/benchmarks/programs/dacapo/mtime.tradebeans.*.txt ${project_root}/benchmarks/data/dacapo/tradebeans/
 	# Move jgrapht logs to data directory
 	# MC UK
-	mv ${project_root}/benchmarks/programs/jgrapht/log.total.maximal_clique_uk.*.txt ${project_root}/benchmarks/programs/jgrapht/maximal_clique_uk/
-	mv ${project_root}/benchmarks/programs/jgrapht/mtime.maximal_clique_uk.*.txt ${project_root}/benchmarks/programs/jgrapht/maximal_clique_uk/
+	mv ${project_root}/benchmarks/programs/jgrapht/log.total.maximal_clique_uk.*.txt ${project_root}/benchmarks/data/jgrapht/maximal_clique_uk/
+	mv ${project_root}/benchmarks/programs/jgrapht/mtime.maximal_clique_uk.*.txt ${project_root}/benchmarks/data/jgrapht/maximal_clique_uk/
 	# MC ENWIKI
-	mv ${project_root}/benchmarks/programs/jgrapht/log.total.maximal_clique_enwiki.*.txt ${project_root}/benchmarks/programs/jgrapht/maximal_clique_enwiki/
-	mv ${project_root}/benchmarks/programs/jgrapht/mtime.maximal_clique_enwiki.*.txt ${project_root}/benchmarks/programs/jgrapht/maximal_clique_enwiki/
+	mv ${project_root}/benchmarks/programs/jgrapht/log.total.maximal_clique_enwiki.*.txt ${project_root}/benchmarks/data/jgrapht/maximal_clique_enwiki/
+	mv ${project_root}/benchmarks/programs/jgrapht/mtime.maximal_clique_enwiki.*.txt ${project_root}/benchmarks/data/jgrapht/maximal_clique_enwiki/
 	# CC UK
-	mv ${project_root}/benchmarks/programs/jgrapht/log.total.connected_component_uk.*.txt ${project_root}/benchmarks/programs/jgrapht/connected_component_uk/
-	mv ${project_root}/benchmarks/programs/jgrapht/mtime.connected_component_uk.*.txt ${project_root}/benchmarks/programs/jgrapht/connected_component_uk/
+	mv ${project_root}/benchmarks/programs/jgrapht/log.total.connected_component_uk.*.txt ${project_root}/benchmarks/data/jgrapht/connected_component_uk/
+	mv ${project_root}/benchmarks/programs/jgrapht/mtime.connected_component_uk.*.txt ${project_root}/benchmarks/data/jgrapht/connected_component_uk/
 	# CC ENWIKI
-	mv ${project_root}/benchmarks/programs/jgrapht/log.total.connected_component_enwiki.*.txt ${project_root}/benchmarks/programs/jgrapht/connected_component_enwiki/
-	mv ${project_root}/benchmarks/programs/jgrapht/mtime.connected_component_enwiki.*.txt ${project_root}/benchmarks/programs/jgrapht/connected_component_enwiki/
+	mv ${project_root}/benchmarks/programs/jgrapht/log.total.connected_component_enwiki.*.txt ${project_root}/benchmarks/data/jgrapht/connected_component_enwiki/
+	mv ${project_root}/benchmarks/programs/jgrapht/mtime.connected_component_enwiki.*.txt ${project_root}/benchmarks/data/jgrapht/connected_component_enwiki/
 	# produce plots (a few minutes -- logs will be displayed if you run in a graphical UI)
 	cd ${project_root}/benchmarks/data && stack runghc -- plot.hs
 	# open result file
@@ -113,11 +113,3 @@ test_full:
 	# open result file
 	echo "Now open ${project_root}/benchmarks/results.html in a browser"
 	chromium ${project_root}/benchmarks/results.html 1> /dev/null 2> /dev/null &
-
-.PHONY: clean_results
-clean_results:
-	rm -f ${project_root}/benchmarks/data/images/evaluation/*.txt
-	rm -f ${project_root}/benchmarks/data/images/submitted_evaluation/*.txt
-	rm -f ${project_root}/benchmarks/programs/synthetic/*.txt
-
-
