@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2020-03-23 mån 09:28 -->
+<!-- 2020-04-21 tis 16:15 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>PAPER 99: Improving Program Locality in the GC using Hotness</title>
@@ -201,7 +201,7 @@
 @licstart  The following is the entire license notice for the
 JavaScript code in this tag.
 
-Copyright (C) 2012-2020 Free Software Foundation, Inc.
+Copyright (C) 2012-2019 Free Software Foundation, Inc.
 
 The JavaScript code in this tag is free software: you can
 redistribute it and/or modify it under the terms of the GNU
@@ -250,33 +250,33 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#orga805f71">1. Overview</a></li>
-<li><a href="#org5ac9e4e">2. Getting Started</a>
+<li><a href="#org3a2bb4d">1. Overview</a></li>
+<li><a href="#orga9de12c">2. Getting Started</a>
 <ul>
-<li><a href="#orgde24004">2.1. OPTION 1: Download Pre-Packaged Virtual Machine </a></li>
-<li><a href="#org62d0a9b">2.2. OPTION 2: Manual Build on Debian/Ubuntu </a></li>
+<li><a href="#org1d495a5">2.1. OPTION 1: Pre-Packaged Virtual Machine </a></li>
+<li><a href="#orgebb61e3">2.2. OPTION 2: Manual Build on Debian/Ubuntu </a></li>
 </ul>
 </li>
-<li><a href="#orgf19d976">3. Step-by-Step</a>
+<li><a href="#orgf61d9d1">3. Step-by-Step</a>
 <ul>
-<li><a href="#org19b7590">3.1. Running the Simplified Benchmarks</a>
+<li><a href="#org3ff15e6">3.1. Running the Simplified Benchmarks</a>
 <ul>
-<li><a href="#orgb433e70">3.1.1. Kick-the-Tires Benchmark Fast (~15 minutes)</a></li>
-<li><a href="#org58892a1">3.1.2. Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</a></li>
-<li><a href="#org4d6bf78">3.1.3. Full Benchmark Slow (Weeks(!))</a></li>
-<li><a href="#org6e631ee">3.1.4. Exporting the Results for Viewing Outside the VM</a></li>
+<li><a href="#org9dc217d">3.1.1. Kick-the-Tires Benchmark Fast (~15 minutes)</a></li>
+<li><a href="#org4a7f684">3.1.2. Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</a></li>
+<li><a href="#orgbf55303">3.1.3. Full Benchmark Slow (Weeks(!))</a></li>
+<li><a href="#org4da65c3">3.1.4. Exporting the Results for Viewing Outside the VM</a></li>
 </ul>
 </li>
-<li><a href="#org0226274">3.2. How to Evaluate this Artefact</a></li>
-<li><a href="#org9907676">3.3. Viewing the Results</a></li>
+<li><a href="#orga89ebec">3.2. How to Evaluate this Artefact</a></li>
+<li><a href="#org7a6f71d">3.3. Viewing the Results</a></li>
 </ul>
 </li>
 </ul>
 </div>
 </div>
 
-<div id="outline-container-orga805f71" class="outline-2">
-<h2 id="orga805f71"><span class="section-number-2">1</span> Overview</h2>
+<div id="outline-container-org3a2bb4d" class="outline-2">
+<h2 id="org3a2bb4d"><span class="section-number-2">1</span> Overview</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 Paper 99 presents HCSGC, built on-top of the ZGC collector in
@@ -358,12 +358,12 @@ for all dependencies and the build itself.
 </div>
 </div>
 
-<div id="outline-container-org5ac9e4e" class="outline-2">
-<h2 id="org5ac9e4e"><span class="section-number-2">2</span> Getting Started</h2>
+<div id="outline-container-orga9de12c" class="outline-2">
+<h2 id="orga9de12c"><span class="section-number-2">2</span> Getting Started</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 This section explains how to install HCSGC alongside an OpenJDK
-baseline. <a href="#orgf19d976">The next section</a> explains how to run the benchmarks.
+baseline. <a href="#orgf61d9d1">The next section</a> explains how to run the benchmarks.
 </p>
 
 <p>
@@ -383,10 +383,9 @@ results, we suggestion Option 2 (manual native install).
 </p>
 
 <ul class="org-ul">
-<li><a href="#orgf2ff1de">Option 1</a> is a full VM download. This requires no other setup or
-installation other than the virtual machine infrastructure, but
-requires a download of ~8 gigabytes.</li>
-<li><a href="#orge3b4bca">Option 2</a> is a set of manual instructions for how to build and
+<li><a href="#org51b4a34">Option 1</a> is a full VM (~8GB) download. This requires no other setup or
+installation other than the virtual machine infrastructure.</li>
+<li><a href="#orgcb1b57b">Option 2</a> is a set of manual instructions for how to build and
 install HCSGC on Debian/Ubuntu.</li>
 </ul>
 
@@ -397,8 +396,8 @@ Notes: Option 1, due to running inside virtual machines, typically
 </div>
 
 
-<div id="outline-container-orgde24004" class="outline-3">
-<h3 id="orgde24004"><span class="section-number-3">2.1</span> OPTION 1: Download Pre-Packaged Virtual Machine <a id="orgf2ff1de"></a></h3>
+<div id="outline-container-org1d495a5" class="outline-3">
+<h3 id="org1d495a5"><span class="section-number-3">2.1</span> OPTION 1: Pre-Packaged Virtual Machine <a id="org51b4a34"></a></h3>
 <div class="outline-text-3" id="text-2-1">
 <p>
 You can use your favorite virtualisation software. We have tested
@@ -406,14 +405,8 @@ this VM using <a href="https://www.virtualbox.org/">Virtual Box</a>.
 </p>
 
 <p>
-The Virtual machine can be downloaded from here: <a href="http://wrigstad.com/paper99.zip">http://wrigstad.com/paper99.zip</a>
-(Since you are reading this file, you are probably already past this step. In that case,
-you can find the virtual machine as <code>pldi.ova</code> inside the above-mentioned zip file.)
-</p>
-
-<p>
-After importing the VM, start and login to the VM with the
-following credentials:
+After uncompressing the artifact, one can import the VM (<code>pldi.ova</code>) directly;
+start and login to the VM with the following credentials:
 </p>
 
 <pre class="example">
@@ -422,7 +415,7 @@ password: vagrant
 </pre>
 
 <p>
-See <a href="#orgf19d976">the next section</a> for instructions for how to run the
+See <a href="#orgf61d9d1">the next section</a> for instructions for how to run the
 benchmarks.
 </p>
 
@@ -435,34 +428,31 @@ from the benchmarking.
 </div>
 
 
-
-<div id="outline-container-org62d0a9b" class="outline-3">
-<h3 id="org62d0a9b"><span class="section-number-3">2.2</span> OPTION 2: Manual Build on Debian/Ubuntu <a id="orge3b4bca"></a></h3>
+<div id="outline-container-orgebb61e3" class="outline-3">
+<h3 id="orgebb61e3"><span class="section-number-3">2.2</span> OPTION 2: Manual Build on Debian/Ubuntu <a id="orgcb1b57b"></a></h3>
 <div class="outline-text-3" id="text-2-2">
 <p>
-Because of the large number of dependencies for OpenJDK, we limit
-ourselves to providing manual instructions for building on
-debian/ubuntu. At the time we implemented HCSGC, ZGC, which we
-build upon, was only available for 64bit Linux.
+Because of the large number of dependencies for OpenJDK, we limit ourselves to
+providing manual instructions for building on debian/ubuntu. At the time we
+implemented HCSGC, ZGC, which we build upon, was only available for 64bit Linux.
 </p>
 
 <p>
-Create a directory for the artefact, e.g. <code>mkdir ~/paper99; cd
-~/paper99</code>. All commands from now on are assumed to be issued from
-within that directory.
+Create a directory for the artefact, e.g. <code>mkdir ~/paper99; cd ~/paper99</code>. All
+commands from now on are assumed to be issued from within that directory.
 </p>
 
 <p>
-Download the benchmark programs and scripts from
-<a href="http://wrigstad.com/paper99.zip">http://wrigstad.com/paper99.zip</a> (discard the .ova VM file) and extract into <code>~/paper99</code>.
-This will give you the following files and directories:
+After uncompressing the artifact, you will see the following files and
+directories (discarding the .ova VM file):
 </p>
 
 <pre class="example">
 ~paper99
   ├── 0001-hcsgc.patch  &lt;-- HCSGC sources patch
-  ├── benchmarks        &lt;-- our benchmark programs
+  ├── benchmarks        &lt;-- benchmark programs &amp; scripts for running/plotting
   ├── jtreg             &lt;-- OpenJDK build dependency
+  ├── LICENSE
   ├── README.html
   ├── README.org
   └── README.txt
@@ -630,8 +620,8 @@ scripts will not run!</b>
 </div>
 </div>
 
-<div id="outline-container-orgf19d976" class="outline-2">
-<h2 id="orgf19d976"><span class="section-number-2">3</span> Step-by-Step</h2>
+<div id="outline-container-orgf61d9d1" class="outline-2">
+<h2 id="orgf61d9d1"><span class="section-number-2">3</span> Step-by-Step</h2>
 <div class="outline-text-2" id="text-3">
 <p>
 This section contains instructions for running the benchmarks from
@@ -648,8 +638,8 @@ the paper).
 </div>
 
 
-<div id="outline-container-org19b7590" class="outline-3">
-<h3 id="org19b7590"><span class="section-number-3">3.1</span> Running the Simplified Benchmarks</h3>
+<div id="outline-container-org3ff15e6" class="outline-3">
+<h3 id="org3ff15e6"><span class="section-number-3">3.1</span> Running the Simplified Benchmarks</h3>
 <div class="outline-text-3" id="text-3-1">
 <p>
 Due to the large number of configurations, and the large number of
@@ -734,8 +724,8 @@ the benchmarks:
 </table>
 </div>
 
-<div id="outline-container-orgb433e70" class="outline-4">
-<h4 id="orgb433e70"><span class="section-number-4">3.1.1</span> Kick-the-Tires Benchmark Fast (~15 minutes)</h4>
+<div id="outline-container-org9dc217d" class="outline-4">
+<h4 id="org9dc217d"><span class="section-number-4">3.1.1</span> Kick-the-Tires Benchmark Fast (~15 minutes)</h4>
 <div class="outline-text-4" id="text-3-1-1">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
@@ -792,8 +782,8 @@ a browser to show them together with accompanying text.
 </div>
 </div>
 
-<div id="outline-container-org58892a1" class="outline-4">
-<h4 id="org58892a1"><span class="section-number-4">3.1.2</span> Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</h4>
+<div id="outline-container-org4a7f684" class="outline-4">
+<h4 id="org4a7f684"><span class="section-number-4">3.1.2</span> Kick-the-Tires Benchmark Slow (optional &#x2013; note: ~1 day)</h4>
 <div class="outline-text-4" id="text-3-1-2">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
@@ -852,8 +842,8 @@ make test_full
 </div>
 </div>
 
-<div id="outline-container-org4d6bf78" class="outline-4">
-<h4 id="org4d6bf78"><span class="section-number-4">3.1.3</span> Full Benchmark Slow (Weeks(!))</h4>
+<div id="outline-container-orgbf55303" class="outline-4">
+<h4 id="orgbf55303"><span class="section-number-4">3.1.3</span> Full Benchmark Slow (Weeks(!))</h4>
 <div class="outline-text-4" id="text-3-1-3">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
@@ -945,8 +935,8 @@ plots from the paper for comparison and all these figures are shown in <code>res
 </div>
 </div>
 
-<div id="outline-container-org6e631ee" class="outline-4">
-<h4 id="org6e631ee"><span class="section-number-4">3.1.4</span> Exporting the Results for Viewing Outside the VM</h4>
+<div id="outline-container-org4da65c3" class="outline-4">
+<h4 id="org4da65c3"><span class="section-number-4">3.1.4</span> Exporting the Results for Viewing Outside the VM</h4>
 <div class="outline-text-4" id="text-3-1-4">
 <p>
 You can create a zip file, <code>results.zip</code>, with all the plots and
@@ -966,8 +956,8 @@ probably by using <code>scp</code> to copy <code>results.zip</code> to some othe
 </div>
 
 
-<div id="outline-container-org0226274" class="outline-3">
-<h3 id="org0226274"><span class="section-number-3">3.2</span> How to Evaluate this Artefact</h3>
+<div id="outline-container-orga89ebec" class="outline-3">
+<h3 id="orga89ebec"><span class="section-number-3">3.2</span> How to Evaluate this Artefact</h3>
 <div class="outline-text-3" id="text-3-2">
 <p>
 This is described in <a href="benchmarks/results.html">results.html</a> along with the figures produced
@@ -978,8 +968,8 @@ above.
 </div>
 
 
-<div id="outline-container-org9907676" class="outline-3">
-<h3 id="org9907676"><span class="section-number-3">3.3</span> Viewing the Results</h3>
+<div id="outline-container-org7a6f71d" class="outline-3">
+<h3 id="org7a6f71d"><span class="section-number-3">3.3</span> Viewing the Results</h3>
 <div class="outline-text-3" id="text-3-3">
 <p>
 The file <a href="benchmarks/results.html">results.html</a> is opened by the main makefile after
@@ -1005,7 +995,7 @@ included due to copyright restrictions.</p></div></div>
 </div></div>
 <div id="postamble" class="status">
 <p class="author">Author: Tobias Wrigstad</p>
-<p class="date">Created: 2020-03-23 mån 09:28</p>
+<p class="date">Created: 2020-04-21 tis 16:15</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
